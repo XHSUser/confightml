@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.github.com https://itunes.apple.com; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>配置平台</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="workspace.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><img src="assets/fuchun-remaining-mountain.jpg" width="44" height="44" alt="" /><span>配</span></div>
+        <div>
+          <div class="brand-title">配置平台</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <div class="connection-summary">
+          <span class="status-dot"></span>
+          <select id="connectionSelect" aria-label="选择连接配置"></select>
+        </div>
+        <button class="button ghost" id="manageConnectionsBtn">连接管理</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <div>
+            <div class="eyebrow">WORKSPACE</div>
+            <h2>应用列表</h2>
+          </div>
+          <button class="button primary small" id="createAppBtn">＋ 新建</button>
+        </div>
+        <div class="repo-caption" id="repoCaption">还没有连接配置</div>
+        <div class="app-search-wrap">
+          <span class="search-icon">⌕</span>
+          <input id="appSearch" type="search" placeholder="搜索应用" autocomplete="off" />
+        </div>
+        <div class="app-list" id="appList">
+          <div class="empty-state compact"><div class="empty-icon" aria-hidden="true">⌁</div><p>连接配置后显示应用</p></div>
+        </div>
+        <div class="sidebar-footer">
+          <button class="text-button" id="refreshAppsBtn">↻ 刷新列表</button>
+          <span id="appCount">0 个应用</span>
+        </div>
+      </aside>
+
+      <section class="content" id="contentArea">
+        <div class="welcome-state" id="welcomeState">
+          <h1>尚未打开应用</h1>
+          <p>当前没有正在编辑的配置。</p>
+          <button class="button primary" id="welcomeCreateBtn">＋ 新建应用</button>
+        </div>
+
+        <div class="editor" id="editor" hidden>
+          <div class="editor-header">
+            <div>
+              <h1 id="editorTitle">应用配置</h1>
+              <div class="editor-meta"><span class="live-indicator"></span><span id="editorMetaText" aria-live="polite">等待加载</span></div>
+            </div>
+            <div class="editor-actions">
+              <span id="saveState" class="save-state"></span>
+              <button class="button danger ghost" id="deleteAppBtn">删除应用</button>
+            </div>
+          </div>
+
+          <div class="editor-body">
+            <nav class="editor-sections" aria-label="配置分类" role="tablist" aria-orientation="vertical">
+              <button type="button" class="section-tab active" id="tab-app" role="tab" aria-selected="true" aria-controls="section-app" data-section="app">应用设置</button>
+              <button type="button" class="section-tab" id="tab-payment" role="tab" aria-selected="false" aria-controls="section-payment" data-section="payment" tabindex="-1">支付配置</button>
+              <button type="button" class="section-tab" id="tab-ads" role="tab" aria-selected="false" aria-controls="section-ads" data-section="ads" tabindex="-1">广告位</button>
+              <button type="button" class="section-tab" id="tab-switches" role="tab" aria-selected="false" aria-controls="section-switches" data-section="switches" tabindex="-1">开关配置</button>
+              <button type="button" class="section-tab" id="tab-other" role="tab" aria-selected="false" aria-controls="section-other" data-section="other" tabindex="-1">其他信息</button>
+              <button type="button" class="section-tab" id="tab-raw" role="tab" aria-selected="false" aria-controls="section-raw" data-section="raw" tabindex="-1">直接配置</button>
+            </nav>
+            <div class="form-grid">
+            <section class="panel span-full" id="section-app" role="tabpanel" aria-labelledby="tab-app" data-config-section="app">
+              <div class="panel-heading"><div><h3>应用设置</h3><p>控制应用总体状态与最新版本号</p></div><span class="panel-number">01</span></div>
+              <div class="field-grid three app-info-fields">
+                <label class="field"><span>应用名称 <strong class="required">必填</strong></span><input id="appDisplayName" type="text" placeholder="例如：我的工具" data-required-field="应用名称" required /></label>
+                <label class="field"><span>包名</span><input id="appPackageName" type="text" placeholder="可选" /></label>
+                <label class="field"><span>商店链接</span><input id="appStoreUrl" type="url" placeholder="可选" /></label>
+              </div>
+              <div class="section-divider"></div>
+              <div class="field-grid three">
+                <label class="field"><span>广告总开关</span><button type="button" class="switch-control" id="appAdToggle" data-toggle="app-ad" data-value="1" data-on-text="开启" data-off-text="关闭" aria-pressed="true"><span class="switch-knob"></span><strong>开启</strong></button></label>
+                <label class="field"><span>应用总开关</span><button type="button" class="switch-control" id="appOnToggle" data-toggle="app-on" data-value="1" data-on-text="开启" data-off-text="关闭" aria-pressed="true"><span class="switch-knob"></span><strong>开启</strong></button></label>
+                <label class="field"><span class="version-field-label">当前版本 <strong class="required">必填</strong><button type="button" class="text-button version-update-button" id="updateVersionBtn">更新</button></span><input id="appVersion" type="text" inputmode="decimal" pattern="^[0-9]+\.[0-9]+(?:\.[0-9]+)?$" placeholder="例如 1.0 或 1.0.0" data-required-field="当前版本" required /></label>
+              </div>
+            </section>
+
+            <section class="panel span-full" id="section-payment" role="tabpanel" aria-labelledby="tab-payment" data-config-section="payment" hidden>
+              <div class="panel-heading"><div><h3>支付配置</h3><p>配置支付服务入口及商品套餐</p></div><span class="panel-number">02</span></div>
+              <div class="field-grid four revenue-fields">
+                <label class="field"><span>支付链接</span><input id="revenueUrl" type="url" placeholder="https://api.rc-backup.com/" /></label>
+                <label class="field"><span>支付 Key</span><input id="revenueKey" type="text" placeholder="请输入支付 key" /></label>
+                <label class="field"><span>Offer 名称</span><input id="revenueOffername" type="text" placeholder="offer" /></label>
+                <label class="field"><span>Pay 名称</span><input id="revenuePayname" type="text" placeholder="pay" /></label>
+              </div>
+              <div class="subsection-heading"><div><h4>支付套餐 <span id="payCountBadge" class="count-badge">0</span></h4><p>默认套餐只能有一个</p></div></div>
+              <div class="table-scroll"><div class="pay-table" id="payList"></div></div>
+              <div class="inline-empty" id="payEmpty">还没有支付套餐。</div>
+              <button class="button secondary full-width" id="addPayBtn">＋ 添加套餐</button>
+            </section>
+
+            <section class="panel span-full" id="section-ads" role="tabpanel" aria-labelledby="tab-ads" data-config-section="ads" hidden>
+              <div class="panel-heading"><div><h3>广告位配置</h3><p>配置各广告位的标识</p></div><span class="panel-number">03</span></div>
+              <div class="field-grid two taku-grid">
+                <label class="field"><span>App ID</span><input data-taku="appid" type="text" /></label>
+                <label class="field"><span>App Key</span><input data-taku="appkey" type="text" /></label>
+                <label class="field"><span>Banner</span><input data-taku="banner" type="text" /></label>
+                <label class="field"><span>插屏</span><input data-taku="insert" type="text" /></label>
+                <label class="field"><span>开屏</span><input data-taku="open" type="text" /></label>
+                <label class="field"><span>激励视频</span><input data-taku="reward" type="text" /></label>
+              </div>
+            </section>
+
+            <section class="panel span-full" id="section-switches" role="tabpanel" aria-labelledby="tab-switches" data-config-section="switches" hidden>
+              <div class="panel-heading"><div><h3>开关配置</h3><p>为应用创建可控的功能开关</p></div><div class="panel-heading-tools"><div class="switch-bulk-actions"><button type="button" class="button secondary small" id="enableAllSwitchBtn">一键开启</button><button type="button" class="button secondary small" id="disableAllSwitchBtn">一键关闭</button></div><span class="panel-number">04</span></div></div>
+              <div class="switch-list" id="switchList"></div>
+              <div class="inline-empty" id="switchEmpty">还没有开关配置。</div>
+              <button class="button secondary full-width" id="addSwitchBtn">＋ 添加开关</button>
+            </section>
+
+            <section class="panel span-full" id="section-other" role="tabpanel" aria-labelledby="tab-other" data-config-section="other" hidden>
+              <div class="panel-heading"><div><h3>其他信息配置</h3><p>维护应用所需的补充信息</p></div><span class="panel-number">05</span></div>
+              <div class="other-list" id="otherList"></div>
+              <div class="inline-empty" id="otherEmpty">还没有其他信息。</div>
+              <button type="button" class="button secondary full-width" id="addOtherBtn">＋ 添加信息</button>
+            </section>
+
+            <section class="panel span-full raw-panel" id="section-raw" role="tabpanel" aria-labelledby="tab-raw" data-config-section="raw" hidden>
+              <div class="panel-heading"><div><h3>直接配置</h3><p>粘贴完整内容后应用，可一次完成所有字段设置</p></div><span class="panel-number">06</span></div>
+              <textarea id="rawConfig" class="raw-config" spellcheck="false" placeholder="请输入对象内容"></textarea>
+              <div class="raw-actions"><span class="raw-hint">内容需为一个对象</span><button class="button secondary small" id="applyRawConfigBtn">应用文本配置</button></div>
+            </section>
+
+            </div>
+          </div>
+          <div class="editor-footer">
+            <div class="request-tools">
+              <div class="request-reference">
+                <label class="request-path"><span>配置路径（点击复制完整地址）</span><input id="testRequestPath" type="text" placeholder="例如 app-abcdef" readonly title="点击复制完整请求地址" /></label>
+                <button type="button" class="button secondary" id="copyConnectionKeyBtn" title="复制当前连接的访问令牌">复制 Key</button>
+              </div>
+              <button class="button secondary" id="testRequestBtn">测试请求</button>
+              <button class="button secondary" id="previewBtn">预览配置</button>
+              <button class="button primary" id="saveAppBottomBtn">保存配置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="connectionModal" hidden>
+    <div class="modal connection-modal">
+      <div class="modal-header"><div><div class="eyebrow">REMOTE CONNECTION</div><h2 id="connectionModalTitle">添加连接配置</h2></div><button class="close-button" data-close-modal="connectionModal">×</button></div>
+      <p class="modal-description">访问令牌仅保存在本机应用数据目录中，用于读取和保存远程配置。</p>
+      <form id="connectionForm">
+        <input id="connectionId" type="hidden" />
+        <label class="field"><span>配置名称</span><input id="connectionName" type="text" placeholder="例如：生产环境" /></label>
+        <label class="field"><span>访问令牌 <strong class="required">必填</strong></span><input id="connectionToken" type="password" placeholder="请输入访问令牌" required /></label>
+        <label class="field"><span>远程地址 <strong class="required">必填</strong></span><input id="connectionRepo" type="text" placeholder="请输入远程仓库地址" required /></label>
+        <div class="form-error" id="connectionError"></div>
+        <div class="modal-actions"><button type="button" class="button danger ghost connection-delete" id="deleteConnectionBtn" hidden>删除配置</button><button type="button" class="button ghost" data-close-modal="connectionModal">取消</button><button type="submit" class="button primary">保存并连接</button></div>
+      </form>
+      <div class="modal-foot-actions"><button class="text-button" id="newConnectionBtn">＋ 新建配置</button><button class="text-button" id="importConnectionsBtn">导入配置</button><button class="text-button" id="exportConnectionsBtn">导出配置</button><span class="local-path" id="localPath"></span></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="createAppModal" hidden>
+    <div class="modal small-modal">
+      <div class="modal-header"><div><div class="eyebrow">NEW APPLICATION</div><h2>创建应用</h2></div><button class="close-button" data-close-modal="createAppModal">×</button></div>
+      <p class="modal-description">创建后会自动登记到当前连接的应用目录。</p>
+      <form id="createAppForm">
+        <label class="field"><span>中文名称 <strong class="required">必填</strong></span><input id="newAppName" type="text" placeholder="例如：我的工具" required /></label>
+        <label class="field"><span>包名</span><input id="newAppPackage" type="text" placeholder="可选" /></label>
+        <label class="field"><span>商店链接</span><input id="newAppStoreUrl" type="url" placeholder="可选" /></label>
+        <label class="field"><span>英文文件名</span><input id="newAppFileName" type="text" placeholder="留空自动生成唯一名称" /><small>可手动设置；只能使用英文、数字、下划线或短横线。</small></label>
+        <div class="form-error" id="createAppError"></div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="createAppModal">取消</button><button type="submit" class="button primary">创建并打开</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="payEditModal" hidden>
+    <div class="modal large-modal">
+      <div class="modal-header"><div><div class="eyebrow">PAYMENT PLAN</div><h2>编辑支付套餐</h2></div><button class="close-button" data-close-modal="payEditModal">×</button></div>
+      <p class="modal-description">修改后点击保存，套餐顺序和默认状态会保留。</p>
+      <form id="payEditForm">
+        <input id="payEditIndex" type="hidden" />
+        <div class="field-grid three">
+          <label class="field"><span>套餐名称 <strong class="required">必填</strong></span><input id="payEditName" type="text" required /></label>
+          <label class="field"><span>支付 ID <strong class="required">必填</strong></span><input id="payEditPayid" type="text" inputmode="text" required /></label>
+          <label class="field"><span>标签</span><input id="payEditTag" type="text" /></label>
+          <label class="field"><span>售价</span><input id="payEditPrice" type="text" inputmode="decimal" /></label>
+          <label class="field"><span>原价</span><input id="payEditOldprice" type="text" inputmode="decimal" /></label>
+          <label class="field"><span>套餐序号</span><input id="payEditPlanIndex" type="text" inputmode="numeric" /></label>
+          <label class="field"><span>显示</span><button type="button" class="switch-control" id="payEditShowToggle" data-toggle="pay-edit-show" data-value="1" data-on-text="显示" data-off-text="隐藏" aria-pressed="true"><span class="switch-knob"></span><strong>显示</strong></button></label>
+          <label class="field"><span>默认套餐</span><button type="button" class="switch-control" id="payEditDefaultToggle" data-toggle="pay-edit-default" data-value="0" data-on-text="是" data-off-text="否" aria-pressed="false"><span class="switch-knob"></span><strong>否</strong></button></label>
+          <label class="field"><span>会员类型</span><select id="payEditViptype"><option value="1">周会员</option><option value="2">月会员</option><option value="3">年会员</option><option value="9">永久会员</option></select></label>
+        </div>
+        <div class="field-grid two pay-edit-copy">
+          <label class="field"><span>套餐说明</span><textarea id="payEditTip" rows="4"></textarea></label>
+          <label class="field"><span>描述说明</span><textarea id="payEditTip2" rows="4"></textarea></label>
+        </div>
+        <div class="form-error" id="payEditError"></div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="payEditModal">取消</button><button type="submit" class="button primary">保存套餐</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="previewModal" hidden>
+    <div class="modal preview-modal">
+      <div class="modal-header"><div><div class="eyebrow">PREVIEW</div><h2>配置预览</h2></div><button class="close-button" data-close-modal="previewModal">×</button></div>
+      <pre id="previewContent" class="preview-content"></pre>
+      <div class="modal-actions"><button type="button" class="button primary" data-close-modal="previewModal">完成</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="loading-overlay" id="loadingOverlay" hidden>
+    <div class="loading-card"><span class="spinner"></span><span id="loadingText">正在处理…</span></div>
+  </div>
+  <script src="mobile-api.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
