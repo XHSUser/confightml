@@ -11,6 +11,8 @@
     repoCaption: $('#repoCaption'),
     appSearch: $('#appSearch'),
     appList: $('#appList'),
+    appListPanel: $('#appListPanel'),
+    toggleAppListBtn: $('#toggleAppListBtn'),
     appCount: $('#appCount'),
     refreshAppsBtn: $('#refreshAppsBtn'),
     createAppBtn: $('#createAppBtn'),
@@ -87,6 +89,8 @@
     previewBtn: $('#previewBtn'),
     testRequestBtn: $('#testRequestBtn'),
     testRequestPath: $('#testRequestPath'),
+    requestPath: $('#requestPath'),
+    toggleRequestPathBtn: $('#toggleRequestPathBtn'),
     copyConnectionKeyBtn: $('#copyConnectionKeyBtn'),
     previewModal: $('#previewModal'),
     previewContent: $('#previewContent'),
@@ -198,6 +202,21 @@
         <span class="file-icon" aria-hidden="true">${escapeHtml((app.name || '应').slice(0, 1))}</span>
         <span class="app-item-name">${escapeHtml(app.name)}</span>
       </button>`).join('');
+  }
+
+  function setAppListExpanded(expanded) {
+    ui.appListPanel.hidden = !expanded;
+    ui.toggleAppListBtn.setAttribute('aria-expanded', String(expanded));
+    ui.toggleAppListBtn.setAttribute('title', expanded ? '收起应用列表' : '展开应用列表');
+    ui.toggleAppListBtn.textContent = expanded ? '⌃' : '⌄';
+  }
+
+  function toggleRequestPath() {
+    const expanded = ui.requestPath.hidden;
+    ui.requestPath.hidden = !expanded;
+    ui.toggleRequestPathBtn.setAttribute('aria-expanded', String(expanded));
+    ui.toggleRequestPathBtn.setAttribute('title', expanded ? '隐藏配置路径' : '显示配置路径');
+    ui.toggleRequestPathBtn.textContent = expanded ? '收起路径' : '路径';
   }
 
   function setEditorVisible(visible) {
@@ -956,6 +975,7 @@
   ui.refreshAppsBtn.addEventListener('click', () => loadApps());
   ui.appSearch.addEventListener('input', renderAppList);
   ui.appList.addEventListener('click', (event) => { const item = event.target.closest('[data-app-path]'); if (item) loadApp(item.dataset.appPath); });
+  ui.toggleAppListBtn.addEventListener('click', () => setAppListExpanded(ui.appListPanel.hidden));
   ui.editorSections.addEventListener('click', (event) => {
     const tab = event.target.closest('[data-section]');
     if (tab) activateSection(tab.dataset.section);
@@ -984,6 +1004,7 @@
   ui.previewBtn.addEventListener('click', previewCurrent);
   ui.testRequestBtn.addEventListener('click', testRequest);
   ui.testRequestPath.addEventListener('click', copyTestRequestUrl);
+  ui.toggleRequestPathBtn.addEventListener('click', toggleRequestPath);
   ui.copyConnectionKeyBtn.addEventListener('click', copyConnectionKey);
   ui.payList.addEventListener('click', handlePayAction);
   ui.payEditForm.addEventListener('submit', handlePayEditSubmit);

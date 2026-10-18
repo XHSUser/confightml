@@ -35,19 +35,24 @@
             <div class="eyebrow">WORKSPACE</div>
             <h2>应用列表</h2>
           </div>
-          <button class="button primary small" id="createAppBtn">＋ 新建</button>
+          <div class="sidebar-heading-actions">
+            <button class="button primary small" id="createAppBtn">＋ 新建</button>
+            <button type="button" class="sidebar-list-toggle" id="toggleAppListBtn" aria-expanded="true" aria-controls="appListPanel" title="收起应用列表">⌃</button>
+          </div>
         </div>
-        <div class="repo-caption" id="repoCaption">还没有连接配置</div>
-        <div class="app-search-wrap">
-          <span class="search-icon">⌕</span>
-          <input id="appSearch" type="search" placeholder="搜索应用" autocomplete="off" />
-        </div>
-        <div class="app-list" id="appList">
-          <div class="empty-state compact"><div class="empty-icon" aria-hidden="true">⌁</div><p>连接配置后显示应用</p></div>
-        </div>
-        <div class="sidebar-footer">
-          <button class="text-button" id="refreshAppsBtn">↻ 刷新列表</button>
-          <span id="appCount">0 个应用</span>
+        <div class="sidebar-list-panel" id="appListPanel">
+          <div class="repo-caption" id="repoCaption">还没有连接配置</div>
+          <div class="app-search-wrap">
+            <span class="search-icon">⌕</span>
+            <input id="appSearch" type="search" placeholder="搜索应用" autocomplete="off" />
+          </div>
+          <div class="app-list" id="appList">
+            <div class="empty-state compact"><div class="empty-icon" aria-hidden="true">⌁</div><p>连接配置后显示应用</p></div>
+          </div>
+          <div class="sidebar-footer">
+            <button class="text-button" id="refreshAppsBtn">↻ 刷新列表</button>
+            <span id="appCount">0 个应用</span>
+          </div>
         </div>
       </aside>
 
@@ -146,7 +151,8 @@
           <div class="editor-footer">
             <div class="request-tools">
               <div class="request-reference">
-                <label class="request-path"><span>配置路径（点击复制完整地址）</span><input id="testRequestPath" type="text" placeholder="例如 app-abcdef" readonly title="点击复制完整请求地址" /></label>
+                <button type="button" class="request-path-toggle" id="toggleRequestPathBtn" aria-expanded="false" aria-controls="requestPath" title="显示配置路径">路径</button>
+                <label class="request-path" id="requestPath" hidden><span>配置路径（点击复制完整地址）</span><input id="testRequestPath" type="text" placeholder="例如 app-abcdef" readonly title="点击复制完整请求地址" /></label>
                 <button type="button" class="button secondary" id="copyConnectionKeyBtn" title="复制当前连接的访问令牌">复制 Key</button>
               </div>
               <button class="button secondary" id="testRequestBtn">测试请求</button>

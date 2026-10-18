@@ -362,3 +362,67 @@ body { background-color: var(--color-paper); }
 @media (prefers-reduced-motion: reduce) {
   .section-tab:active { transform: none; }
 }
+
+/* Compact mobile controls: keep navigation in one scrollable row and make the
+ * application rail collapsible when screen space is limited. */
+.sidebar-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+.sidebar-list-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.sidebar-list-toggle,
+.request-path-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 var(--space-xs);
+  border: var(--rule-width) solid var(--color-control-rule);
+  border-radius: var(--radius-control);
+  color: var(--color-ink-2);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.sidebar-list-toggle:hover,
+.request-path-toggle:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.request-path-toggle { flex: 0 0 auto; height: 34px; }
+
+@media (max-width: 900px) {
+  aside.sidebar:has(.sidebar-list-panel[hidden]) {
+    flex-basis: 58px;
+    height: 58px;
+  }
+  .sidebar-list-panel[hidden] { display: none !important; }
+  .editor-sections {
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .editor-sections::-webkit-scrollbar { display: none; }
+  .section-tab {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content;
+    padding-inline: var(--space-sm);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar-list-toggle { min-width: 32px; padding-inline: var(--space-2xs); }
+  .sidebar-heading-actions { gap: var(--space-2xs); }
+  .request-reference { align-items: center; }
+}
