@@ -7,6 +7,7 @@
 
   const ui = {
     appShell: $('.app-shell'),
+    topbar: $('#topbar'),
     connectionSelect: $('#connectionSelect'),
     manageConnectionsBtn: $('#manageConnectionsBtn'),
     repoCaption: $('#repoCaption'),
@@ -226,6 +227,7 @@
   function toggleEditorFooter() {
     const expanded = ui.editorFooter.hidden;
     ui.editorFooter.hidden = !expanded;
+    ui.editorFooter.style.setProperty('display', expanded ? 'flex' : 'none', 'important');
     ui.toggleEditorFooterBtn.setAttribute('aria-expanded', String(expanded));
     ui.toggleEditorFooterBtn.setAttribute('title', expanded ? '隐藏底部工具栏' : '显示底部工具栏');
     ui.toggleEditorFooterBtn.textContent = expanded ? '⌄' : '⌃';
@@ -233,6 +235,7 @@
 
   function resetEditorFooter() {
     ui.editorFooter.hidden = true;
+    ui.editorFooter.style.setProperty('display', 'none', 'important');
     ui.toggleEditorFooterBtn.setAttribute('aria-expanded', 'false');
     ui.toggleEditorFooterBtn.setAttribute('title', '显示底部工具栏');
     ui.toggleEditorFooterBtn.textContent = '⌃';
@@ -245,6 +248,8 @@
 
   function setDetailPage(active) {
     ui.appShell.classList.toggle('app-detail-active', active);
+    ui.topbar.hidden = active;
+    ui.topbar.setAttribute('aria-hidden', String(active));
     document.title = active && state.currentMetadata?.name
       ? `${state.currentMetadata.name} · 配置平台`
       : '配置平台';

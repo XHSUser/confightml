@@ -467,14 +467,14 @@ body { background-color: var(--color-paper); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   padding: 0;
   border: var(--rule-width) solid var(--color-control-rule);
   border-radius: var(--radius-control);
   color: var(--color-ink-2);
   background: var(--color-surface);
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: 700;
   box-shadow: 0 2px 8px var(--color-shadow);
 }
@@ -489,5 +489,5 @@ body { background-color: var(--color-paper); }
 
 @media (max-width: 900px) {
   .editor-footer { padding-left: calc(var(--space-sm) + 92px); }
-  .editor-footer-toggle { left: var(--space-sm); bottom: calc(var(--space-sm) + env(safe-area-inset-bottom)); }
+  .editor-footer-toggle { left: var(--space-sm); bottom: calc(var(--space-sm) + env(safe-area-inset-bottom)); width: 44px; height: 44px; }
 }
