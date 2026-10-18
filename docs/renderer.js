@@ -21,6 +21,8 @@
     welcomeState: $('#welcomeState'),
     editor: $('#editor'),
     backToAppsBtn: $('#backToAppsBtn'),
+    editorFooter: $('#editorFooter'),
+    toggleEditorFooterBtn: $('#toggleEditorFooterBtn'),
     editorSections: $('.editor-sections'),
     formGrid: $('.form-grid'),
     editorTitle: $('#editorTitle'),
@@ -221,6 +223,21 @@
     ui.toggleRequestPathBtn.textContent = expanded ? '收起路径' : '路径';
   }
 
+  function toggleEditorFooter() {
+    const expanded = ui.editorFooter.hidden;
+    ui.editorFooter.hidden = !expanded;
+    ui.toggleEditorFooterBtn.setAttribute('aria-expanded', String(expanded));
+    ui.toggleEditorFooterBtn.setAttribute('title', expanded ? '隐藏底部工具栏' : '显示底部工具栏');
+    ui.toggleEditorFooterBtn.textContent = expanded ? '⌄' : '⌃';
+  }
+
+  function resetEditorFooter() {
+    ui.editorFooter.hidden = true;
+    ui.toggleEditorFooterBtn.setAttribute('aria-expanded', 'false');
+    ui.toggleEditorFooterBtn.setAttribute('title', '显示底部工具栏');
+    ui.toggleEditorFooterBtn.textContent = '⌃';
+  }
+
   function setEditorVisible(visible) {
     ui.welcomeState.hidden = visible || ui.appShell.classList.contains('app-detail-active');
     ui.editor.hidden = !visible;
@@ -263,6 +280,7 @@
   function openApp(filePath, { replaceRoute = false } = {}) {
     if (!filePath) return;
     setAppRoute(filePath, replaceRoute);
+    resetEditorFooter();
     setDetailPage(true);
     loadApp(filePath);
   }
@@ -1032,6 +1050,7 @@
   ui.appSearch.addEventListener('input', renderAppList);
   ui.appList.addEventListener('click', (event) => { const item = event.target.closest('[data-app-path]'); if (item) openApp(item.dataset.appPath); });
   ui.backToAppsBtn.addEventListener('click', () => showAppsHome());
+  ui.toggleEditorFooterBtn.addEventListener('click', toggleEditorFooter);
   ui.toggleAppListBtn.addEventListener('click', () => setAppListExpanded(ui.appListPanel.hidden));
   ui.editorSections.addEventListener('click', (event) => {
     const tab = event.target.closest('[data-section]');
