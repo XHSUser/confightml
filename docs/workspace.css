@@ -426,3 +426,29 @@ body { background-color: var(--color-paper); }
   .sidebar-heading-actions { gap: var(--space-2xs); }
   .request-reference { align-items: center; }
 }
+
+/* The selected application is a full-page detail view. */
+.app-detail-active .workspace { grid-template-columns: minmax(0, 1fr); }
+.app-detail-active .sidebar { display: none; }
+.app-detail-active .editor { max-width: none; border-left: 0; }
+.back-to-apps {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  margin-bottom: var(--space-2xs);
+  padding: 0;
+  border: 0;
+  color: var(--color-accent);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.back-to-apps:hover { color: var(--color-ink); }
+.back-to-apps:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .app-detail-active .editor { padding-top: var(--space-sm); }
+  .app-detail-active .editor-header { min-height: 76px; }
+  .back-to-apps { margin-bottom: 0; font-size: var(--text-xs); }
+}

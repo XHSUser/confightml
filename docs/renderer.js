@@ -6,6 +6,7 @@
   const clone = (value) => JSON.parse(JSON.stringify(value));
 
   const ui = {
+    appShell: $('.app-shell'),
     connectionSelect: $('#connectionSelect'),
     manageConnectionsBtn: $('#manageConnectionsBtn'),
     repoCaption: $('#repoCaption'),
@@ -19,6 +20,7 @@
     welcomeCreateBtn: $('#welcomeCreateBtn'),
     welcomeState: $('#welcomeState'),
     editor: $('#editor'),
+    backToAppsBtn: $('#backToAppsBtn'),
     editorSections: $('.editor-sections'),
     formGrid: $('.form-grid'),
     editorTitle: $('#editorTitle'),
@@ -220,8 +222,49 @@
   }
 
   function setEditorVisible(visible) {
-    ui.welcomeState.hidden = visible;
+    ui.welcomeState.hidden = visible || ui.appShell.classList.contains('app-detail-active');
     ui.editor.hidden = !visible;
+  }
+
+  function setDetailPage(active) {
+    ui.appShell.classList.toggle('app-detail-active', active);
+    document.title = active && state.currentMetadata?.name
+      ? `${state.currentMetadata.name} · 配置平台`
+      : '配置平台';
+  }
+
+  function appPathFromHash() {
+    const match = location.hash.match(/^#app=(.+)$/);
+    if (!match) return null;
+    try { return decodeURIComponent(match[1]); } catch { return null; }
+  }
+
+  function setAppRoute(filePath, replace = false) {
+    const nextUrl = `${location.pathname}${location.search}#app=${encodeURIComponent(filePath)}`;
+    history[replace ? 'replaceState' : 'pushState']({ app: filePath }, '', nextUrl);
+  }
+
+  function clearAppRoute(replace = false) {
+    const nextUrl = `${location.pathname}${location.search}`;
+    history[replace ? 'replaceState' : 'pushState']({}, '', nextUrl);
+  }
+
+  function showAppsHome({ replaceRoute = false } = {}) {
+    state.selectedPath = null;
+    state.current = null;
+    state.currentMetadata = null;
+    state.currentSha = null;
+    setDetailPage(false);
+    setEditorVisible(false);
+    renderAppList();
+    clearAppRoute(replaceRoute);
+  }
+
+  function openApp(filePath, { replaceRoute = false } = {}) {
+    if (!filePath) return;
+    setAppRoute(filePath, replaceRoute);
+    setDetailPage(true);
+    loadApp(filePath);
   }
 
   function activateSection(section, focusTab = false) {
@@ -373,6 +416,7 @@
     ui.editorMetaText.textContent = '已加载';
     ui.saveState.textContent = '';
     ui.saveState.className = 'save-state';
+    setDetailPage(true);
     setEditorVisible(true);
   }
 
@@ -516,16 +560,21 @@
       state.selectedPath = null;
       state.current = null;
       state.currentMetadata = null;
-      renderConnectionSelect(); renderAppList(); renderEditor();
+      renderConnectionSelect(); renderAppList(); setDetailPage(false); renderEditor();
       return;
     }
     ui.refreshAppsBtn.disabled = true;
     try {
       state.apps = await request(() => window.desktopAPI.listApps(connection.id), '正在读取应用列表…');
-      if (selectFirst || !state.apps.some((app) => app.path === state.selectedPath)) {
+      if (selectFirst) {
         state.selectedPath = state.apps[0]?.path || null;
         state.current = null;
         state.currentMetadata = null;
+      } else if (state.selectedPath && !state.apps.some((app) => app.path === state.selectedPath)) {
+        state.selectedPath = null;
+        state.current = null;
+        state.currentMetadata = null;
+        setDetailPage(false);
       }
       renderAppList();
       if (state.selectedPath) await loadApp(state.selectedPath); else renderEditor();
@@ -648,7 +697,8 @@
       state.activeConnectionId = result.state.activeConnectionId;
       closeModal(ui.connectionModal);
       renderConnectionSelect();
-      await loadApps({ selectFirst: true });
+      showAppsHome({ replaceRoute: true });
+      await loadApps();
       showToast('连接配置已保存');
     } catch (error) { showError(ui.connectionError, error); }
   }
@@ -667,7 +717,8 @@
       state.currentMetadata = null;
       state.currentSha = null;
       renderConnectionSelect();
-      await loadApps({ selectFirst: true });
+      showAppsHome({ replaceRoute: true });
+      await loadApps();
       if (state.connections.length) closeModal(ui.connectionModal);
       else openConnectionModal();
       showToast('连接配置已删除');
@@ -688,12 +739,12 @@
         fileName: ui.newAppFileName.value
       }), '正在创建应用…');
       closeModal(ui.createAppModal);
-      state.selectedPath = result.path;
-      state.current = result.document;
-      state.currentMetadata = result.metadata;
-      state.currentSha = result.sha;
+      state.selectedPath = null;
+      state.current = null;
+      state.currentMetadata = null;
+      state.currentSha = null;
       await loadApps();
-      await loadApp(result.path);
+      openApp(result.path);
       showToast('应用已创建');
     } catch (error) { showError(ui.createAppError, error); }
   }
@@ -711,7 +762,8 @@
       state.currentMetadata = null;
       state.currentSha = null;
       state.selectedPath = null;
-      await loadApps({ selectFirst: true });
+      showAppsHome();
+      await loadApps();
     } catch (error) { showError(null, error); }
     finally { state.saving = false; }
   }
@@ -955,8 +1007,12 @@
       renderConnectionSelect();
       const localPath = await window.desktopAPI.getUserDataPath();
       ui.localPath.textContent = localPath;
-      if (state.connections.length) await loadApps({ selectFirst: true });
-      else { renderAppList(); setEditorVisible(false); openConnectionModal(); }
+      if (state.connections.length) {
+        await loadApps();
+        const requestedPath = appPathFromHash();
+        if (requestedPath && state.apps.some((app) => app.path === requestedPath)) openApp(requestedPath, { replaceRoute: true });
+        else if (requestedPath) clearAppRoute(true);
+      } else { renderAppList(); setDetailPage(false); setEditorVisible(false); openConnectionModal(); }
     } catch (error) { showError(null, error); }
   }
 
@@ -965,8 +1021,8 @@
       const saved = await request(() => window.desktopAPI.activateConnection(ui.connectionSelect.value), '正在切换连接…');
       state.connections = saved.connections;
       state.activeConnectionId = saved.activeConnectionId;
-      state.selectedPath = null; state.current = null; state.currentMetadata = null;
-      renderConnectionSelect(); await loadApps({ selectFirst: true });
+      showAppsHome({ replaceRoute: true });
+      renderConnectionSelect(); await loadApps();
     } catch (error) { showError(null, error); }
   });
   ui.manageConnectionsBtn.addEventListener('click', () => openConnectionModal(activeConnection()));
@@ -974,7 +1030,8 @@
   ui.newConnectionBtn.addEventListener('click', () => openConnectionModal());
   ui.refreshAppsBtn.addEventListener('click', () => loadApps());
   ui.appSearch.addEventListener('input', renderAppList);
-  ui.appList.addEventListener('click', (event) => { const item = event.target.closest('[data-app-path]'); if (item) loadApp(item.dataset.appPath); });
+  ui.appList.addEventListener('click', (event) => { const item = event.target.closest('[data-app-path]'); if (item) openApp(item.dataset.appPath); });
+  ui.backToAppsBtn.addEventListener('click', () => showAppsHome());
   ui.toggleAppListBtn.addEventListener('click', () => setAppListExpanded(ui.appListPanel.hidden));
   ui.editorSections.addEventListener('click', (event) => {
     const tab = event.target.closest('[data-section]');
@@ -1022,7 +1079,7 @@
   ui.connectionForm.addEventListener('submit', handleConnectionSubmit);
   ui.createAppForm.addEventListener('submit', handleCreateApp);
   ui.importConnectionsBtn.addEventListener('click', async () => {
-    try { const result = await request(() => window.desktopAPI.importConnections(), '正在导入连接配置…'); if (!result.canceled) { state.connections = result.state.connections; state.activeConnectionId = result.state.activeConnectionId; renderConnectionSelect(); await loadApps({ selectFirst: true }); showToast('配置已导入'); } } catch (error) { showError(ui.connectionError, error); }
+    try { const result = await request(() => window.desktopAPI.importConnections(), '正在导入连接配置…'); if (!result.canceled) { state.connections = result.state.connections; state.activeConnectionId = result.state.activeConnectionId; showAppsHome({ replaceRoute: true }); renderConnectionSelect(); await loadApps(); showToast('配置已导入'); } } catch (error) { showError(ui.connectionError, error); }
   });
   ui.exportConnectionsBtn.addEventListener('click', async () => { try { const result = await request(() => window.desktopAPI.exportConnections(), '正在导出连接配置…'); if (!result.canceled) showToast('配置已导出'); } catch (error) { showError(null, error); } });
   document.addEventListener('click', (event) => { const close = event.target.closest('[data-close-modal]'); if (close) closeModal(document.getElementById(close.dataset.closeModal)); });
@@ -1030,6 +1087,13 @@
     if (event.target !== backdrop || !state.connections.length) return;
     closeModal(backdrop);
   }));
+
+  window.addEventListener('popstate', () => {
+    const requestedPath = appPathFromHash();
+    if (!requestedPath) return showAppsHome({ replaceRoute: true });
+    if (state.apps.some((app) => app.path === requestedPath)) openApp(requestedPath, { replaceRoute: true });
+    else showAppsHome({ replaceRoute: true });
+  });
 
   init();
 })();
