@@ -433,7 +433,7 @@
     renderPayList();
     renderSwitchList();
     renderOtherList();
-    ui.rawConfig.value = JSON.stringify(document, null, 2);
+    ui.rawConfig.value = JSON.stringify(window.configJSON.omitEmptyFields(document), null, 2);
     ui.testRequestPath.value = state.selectedPath ? state.selectedPath.replace(/\.json$/i, '') : '';
     ui.editorTitle.textContent = state.currentMetadata?.name || '应用配置';
     ui.editorMetaText.textContent = '已加载';
@@ -526,8 +526,9 @@
       if (next.default === 1) defaultFound = true;
       return next;
     });
-    ui.rawConfig.value = JSON.stringify(document, null, 2);
-    return document;
+    const output = window.configJSON.omitEmptyFields(document);
+    ui.rawConfig.value = JSON.stringify(output, null, 2);
+    return output;
   }
 
   function requiredFieldLabel(field) {

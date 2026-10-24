@@ -282,6 +282,7 @@
   }
 
   async function writeApp(connection, filePath, document, sha, message, metadata, connectionId) {
+    document = window.configJSON.omitEmptyFields(document);
     const result = await writeRemoteJson(connection, filePath, document, sha, message || `更新应用配置 ${filePath}`);
     if (metadata) {
       const { document: directory, sha: directorySha } = await readDirectory(connection);
@@ -453,7 +454,7 @@
       const { document: directory, sha: directorySha } = await readDirectory(connection);
       const filePath = uniqueFileName(directory, input.fileName);
       if (await readRemoteFile(connection, filePath)) throw new Error('这个英文文件名对应的配置已存在，请换一个名称');
-      const document = clone(DEFAULT_DOCUMENT);
+      const document = window.configJSON.omitEmptyFields(DEFAULT_DOCUMENT);
       const result = await writeRemoteJson(connection, filePath, document, null, `创建应用 ${info.name}`);
       directory.apps.push({ ...info, fileName: result.path || filePath });
       try {
