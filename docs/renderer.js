@@ -505,7 +505,7 @@
       focusInvalidField(missing[0].field);
       throw new Error(`请填写或选择${missing[0].label}${missing.length > 1 ? `，还有 ${missing.length - 1} 项未完成` : ''}`);
     }
-    if (!/^\d+\.\d+(?:\.\d+)?$/.test(String(document.app.version || '').trim())) {
+    if (document.app.version && !/^\d+\.\d+(?:\.\d+)?$/.test(document.app.version)) {
       ui.appVersion.setAttribute('aria-invalid', 'true');
       updateInvalidTabs();
       focusInvalidField(ui.appVersion);
@@ -541,11 +541,11 @@
 
   function refreshRequiredFields() {
     const missing = [];
-    ui.formGrid.querySelectorAll('[data-required-field]').forEach((field) => {
+    ui.formGrid.querySelectorAll('[data-required-field], #appVersion').forEach((field) => {
       const empty = !field.value.trim();
       const invalidVersion = field === ui.appVersion && !empty && !/^\d+\.\d+(?:\.\d+)?$/.test(field.value.trim());
-      if (empty) missing.push({ field, label: requiredFieldLabel(field) });
-      if (state.validationAttempted && (empty || invalidVersion)) field.setAttribute('aria-invalid', 'true');
+      if (empty && field !== ui.appVersion) missing.push({ field, label: requiredFieldLabel(field) });
+      if (state.validationAttempted && ((empty && field !== ui.appVersion) || invalidVersion)) field.setAttribute('aria-invalid', 'true');
       else if (!field.matches('[data-switch-field="key"]')) field.removeAttribute('aria-invalid');
     });
     return missing;
@@ -1016,7 +1016,7 @@
     if (target.id === 'payEditPayid') target.value = target.value.replace(/[^A-Za-z0-9.]/g, '');
     if (target.matches('#payEditPrice, #payEditOldprice')) target.value = target.value.replace(/[^0-9.]/g, '');
     if (target.id === 'payEditPlanIndex') target.value = target.value.replace(/[^0-9]/g, '');
-    if (state.validationAttempted && target.matches('[data-required-field]')) {
+    if (state.validationAttempted && target.matches('[data-required-field], #appVersion')) {
       refreshRequiredFields();
       markDuplicateSwitchKeys();
       updateInvalidTabs();
@@ -1095,7 +1095,7 @@
   document.addEventListener('click', handleToggleClick);
   document.addEventListener('input', sanitiseInput);
   ui.formGrid.addEventListener('change', (event) => {
-    if (state.validationAttempted && event.target.matches('[data-required-field]')) {
+    if (state.validationAttempted && event.target.matches('[data-required-field], #appVersion')) {
       refreshRequiredFields();
       markDuplicateSwitchKeys();
       updateInvalidTabs();

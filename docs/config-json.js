@@ -18,7 +18,10 @@
   }
 
   function omitEmptyFields(document) {
-    return cleanValue(document) ?? {};
+    const output = cleanValue(document) ?? {};
+    // The app configuration applies only when a version is specified.
+    if (output.app && !String(output.app.version ?? '').trim()) delete output.app;
+    return output;
   }
 
   const api = { omitEmptyFields };
