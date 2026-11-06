@@ -140,6 +140,11 @@
     return new TextDecoder().decode(bytes);
   }
 
+  async function versionHash(version) {
+    const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(version)));
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
   function decodeContent(payload, label) {
     if (!payload || Array.isArray(payload) || !payload.content) throw new Error(`${label}无法读取`);
     try { return JSON.parse(fromBase64(payload.content)); } catch { throw new Error(`${label}内容格式有误`); }
@@ -179,28 +184,32 @@
         path: fileName
       };
     }).filter(Boolean);
-    const byPath = new Map(entries.map((item) => [item.fileName, item]));
-    const versionPattern = /^(.*)_(\d+\.\d+(?:\.\d+)?)\.json$/i;
-    const apps = entries.filter((item) => !versionPattern.test(item.fileName));
-    entries.filter((item) => versionPattern.test(item.fileName)).forEach((item) => {
-      const match = item.fileName.match(versionPattern);
-      const common = byPath.get(`${match[1]}.json`);
-      if (!common) apps.push(item);
-      else {
+    const apps = [...entries];
+    const commonEntries = [...entries];
+    entries.slice().forEach((item) => {
+      const common = commonEntries
+        .filter((candidate) => candidate.fileName !== item.fileName && item.fileName.startsWith(candidate.fileName.replace(/\.json$/i, '')))
+        .sort((a, b) => b.fileName.length - a.fileName.length)
+        .find((candidate) => {
+          const suffix = item.fileName.slice(candidate.fileName.replace(/\.json$/i, '').length, -5);
+          try { return /^[0-9a-f]{64}$/i.test(suffix); } catch { return false; }
+        });
+      if (!common) return;
+      const suffix = item.fileName.slice(common.fileName.replace(/\.json$/i, '').length, -5);
+      apps.splice(apps.indexOf(item), 1);
+      {
         common.versions = Array.isArray(common.versions) ? common.versions : [];
-        if (!common.versions.some((version) => version.fileName === item.fileName)) {
-          common.versions.push({ version: match[2], fileName: item.fileName, status: item.status || 'review' });
-        }
+        if (!common.versions.some((version) => version.fileName === item.fileName)) common.versions.push({ version: '', fileName: item.fileName, status: item.status || 'review' });
       }
     });
     return apps;
   }
 
-  function versionFileName(commonFilePath, version) {
+  async function versionFileName(commonFilePath, version) {
     const clean = String(version || '').trim();
     if (!/^\d+\.\d+(?:\.\d+)?$/.test(clean)) throw new Error('版本号需填写类似 1.0 或 1.0.0');
     const common = String(commonFilePath || '').replace(/\.json$/i, '');
-    return `${common}_${clean}.json`;
+    return `${common}${await versionHash(clean)}.json`;
   }
 
   function findDirectoryApp(directory, filePath) {
@@ -218,7 +227,7 @@
   }
 
   async function createVersion(connection, commonFilePath, version, connectionId) {
-    const filePath = versionFileName(commonFilePath, version);
+    const filePath = await versionFileName(commonFilePath, version);
     const commonPayload = await readRemoteFile(connection, commonFilePath);
     if (!commonPayload) throw new Error('没有找到通用 JSON');
     if (await readRemoteFile(connection, filePath)) throw new Error(`版本 ${version} 已存在`);
