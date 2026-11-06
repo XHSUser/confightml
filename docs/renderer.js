@@ -40,9 +40,8 @@
     updateVersionBtn: $('#updateVersionBtn'),
     versionManager: $('#versionManager'),
     versionStatusHint: $('#versionStatusHint'),
-    versionSelect: $('#versionSelect'),
+    versionList: $('#versionList'),
     createVersionBtn: $('#createVersionBtn'),
-    toggleVersionStatusBtn: $('#toggleVersionStatusBtn'),
     revenueUrl: $('#revenueUrl'),
     revenueKey: $('#revenueKey'),
     revenueOffername: $('#revenueOffername'),
@@ -126,7 +125,8 @@
     toastTimer: null,
     loadAppSequence: 0,
     validationAttempted: false
-    ,currentVersion: null
+    ,currentVersion: null,
+    commonFilePath: null
   };
 
   const emptyDocument = () => ({
@@ -286,6 +286,7 @@
     state.current = null;
     state.currentMetadata = null;
     state.currentSha = null;
+    state.commonFilePath = null;
     setDetailPage(false);
     setEditorVisible(false);
     renderAppList();
@@ -456,21 +457,11 @@
 
   function renderVersionManager() {
     const versions = Array.isArray(state.currentMetadata?.versions) ? state.currentMetadata.versions : [];
-    ui.versionSelect.innerHTML = versions.length
-      ? versions.map((item) => `<option value="${escapeHtml(item.fileName)}" data-status="${escapeHtml(item.status || 'review')}">${escapeHtml(item.version)} · ${item.status === 'online' ? '已上线' : '审核中'}</option>`).join('')
-      : '<option value="">还没有版本</option>';
-    state.currentVersion = versions.find((item) => item.fileName === ui.versionSelect.value) || null;
-    ui.toggleVersionStatusBtn.hidden = !state.currentVersion;
-    if (state.currentVersion) {
-      const online = state.currentVersion.status === 'online';
-      ui.toggleVersionStatusBtn.textContent = online ? '退回审核' : '上线版本';
-      ui.toggleVersionStatusBtn.className = `button ${online ? 'secondary' : 'primary'} small`;
-      ui.versionStatusHint.textContent = `${state.currentVersion.version} · ${online ? '已上线：版本文件包含通用配置全部内容' : '审核中：版本文件只包含 paylist'}`;
-      ui.versionStatusHint.className = online ? 'version-status-online' : 'version-status-review';
-    } else {
-      ui.versionStatusHint.textContent = '通用 JSON：保存所有配置的完整内容';
-      ui.versionStatusHint.className = '';
-    }
+    ui.versionList.innerHTML = versions.length ? versions.map((item) => {
+      const online = item.status === 'online';
+      return `<div class="version-row" data-version-file="${escapeHtml(item.fileName)}"><div class="version-row-main"><strong>${escapeHtml(item.version)}</strong><span class="version-status ${online ? 'online' : 'review'}">${online ? '已上线' : '审核中'}</span><small>${escapeHtml(item.fileName)}</small></div><div class="version-row-actions"><button type="button" class="text-button" data-version-action="edit">修改</button><button type="button" class="text-button" data-version-action="preview">预览</button><button type="button" class="text-button" data-version-action="request">测试请求</button><button type="button" class="text-button" data-version-action="status">${online ? '退回审核' : '上线'}</button><button type="button" class="text-button danger-text" data-version-action="delete">删除</button></div></div>`;
+    }).join('') : '<div class="version-list-empty">还没有版本</div>';
+    ui.versionStatusHint.textContent = versions.length ? `共 ${versions.length} 个版本，版本文件按状态同步通用 JSON` : '通用 JSON：保存所有配置的完整内容';
   }
 
   function syncFormToDocument() {
@@ -659,6 +650,7 @@
       state.current = result.document;
       state.currentMetadata = result.metadata || { name: filePath.replace(/\.json$/i, '') };
       state.currentSha = result.sha;
+      state.commonFilePath = result.metadata?.commonFileName || filePath;
       renderEditor();
     } catch (error) {
       if (loadSequence === state.loadAppSequence) showError(null, error);
@@ -687,7 +679,7 @@
   }
 
   function openCreateVersionModal() {
-    if (!state.current || !state.selectedPath) return;
+    if (!state.current || !state.commonFilePath) return;
     ui.createVersionError.textContent = '';
     ui.newVersionNumber.value = '';
     openModal(ui.createVersionModal);
@@ -697,22 +689,69 @@
     event.preventDefault();
     ui.createVersionError.textContent = '';
     try {
-      const result = await request(() => window.desktopAPI.createVersion(activeConnection().id, state.selectedPath, ui.newVersionNumber.value), '正在创建审核版本…');
+      const result = await request(() => window.desktopAPI.createVersion(activeConnection().id, state.commonFilePath, ui.newVersionNumber.value), '正在创建审核版本…');
       closeModal(ui.createVersionModal);
       showToast(`版本 ${result.version} 已创建，当前为审核中`);
       await loadApps();
     } catch (error) { showError(ui.createVersionError, error); }
   }
 
-  async function toggleVersionStatus() {
-    if (!state.currentVersion || !state.selectedPath) return;
-    const nextStatus = state.currentVersion.status === 'online' ? 'review' : 'online';
+  async function toggleVersionStatus(version) {
+    if (!version || !state.commonFilePath) return;
+    const nextStatus = version.status === 'online' ? 'review' : 'online';
     const action = nextStatus === 'online' ? '上线' : '退回审核';
-    if (!window.confirm(`确定将版本 ${state.currentVersion.version} ${action}吗？${nextStatus === 'online' ? '上线后会把通用 JSON 的全部内容复制到版本文件。' : '退回后版本文件只保留 paylist。'}`)) return;
+    if (!window.confirm(`确定将版本 ${version.version} ${action}吗？${nextStatus === 'online' ? '上线后会把通用 JSON 的全部内容复制到版本文件。' : '退回后版本文件只保留 paylist。'}`)) return;
     try {
-      await request(() => window.desktopAPI.setVersionStatus(activeConnection().id, state.selectedPath, state.currentVersion.fileName, nextStatus), `正在${action}…`);
+      await request(() => window.desktopAPI.setVersionStatus(activeConnection().id, state.commonFilePath, version.fileName, nextStatus), `正在${action}…`);
       showToast(`版本已${action}`);
       await loadApps();
+    } catch (error) { showError(null, error); }
+  }
+
+  async function deleteVersion(version) {
+    if (!version || !state.commonFilePath || !window.confirm(`确定删除版本 ${version.version} 吗？删除后无法恢复。`)) return;
+    try {
+      await request(() => window.desktopAPI.deleteVersion(activeConnection().id, state.commonFilePath, version.fileName), '正在删除版本…');
+      showToast(`版本 ${version.version} 已删除`);
+      await loadApps();
+    } catch (error) { showError(null, error); }
+  }
+
+  async function loadVersion(filePath) {
+    const connection = activeConnection();
+    if (!connection) return;
+    try {
+      const result = await request(() => window.desktopAPI.getApp(connection.id, filePath), '正在读取版本配置…');
+      state.selectedPath = filePath;
+      state.current = result.document;
+      state.currentMetadata = result.metadata || {};
+      state.currentSha = result.sha;
+      state.commonFilePath = result.metadata?.commonFileName || state.commonFilePath;
+      renderAppList();
+      renderEditor();
+      ui.editorTitle.textContent = `${state.currentMetadata.name || '应用配置'} · ${state.currentMetadata.version || filePath}`;
+      showToast(`已打开版本 ${state.currentMetadata.version || filePath}`);
+    } catch (error) { showError(null, error); }
+  }
+
+  async function previewVersion(version) {
+    try {
+      const result = await request(() => window.desktopAPI.testRequest(activeConnection().id, version.fileName), '正在读取版本预览…');
+      ui.previewContent.textContent = JSON.stringify(result.document, null, 2);
+      ui.previewModal.querySelector('.eyebrow').textContent = 'VERSION PREVIEW';
+      ui.previewModal.querySelector('h2').textContent = `${version.version} · 配置预览`;
+      openModal(ui.previewModal);
+    } catch (error) { showError(null, error); }
+  }
+
+  async function requestVersion(version) {
+    try {
+      const result = await request(() => window.desktopAPI.testRequest(activeConnection().id, version.fileName), '正在测试版本请求…');
+      ui.previewContent.textContent = JSON.stringify(result.document, null, 2);
+      ui.previewModal.querySelector('.eyebrow').textContent = 'VERSION REQUEST';
+      ui.previewModal.querySelector('h2').textContent = `${version.version} · 请求结果`;
+      openModal(ui.previewModal);
+      showToast('版本请求成功');
     } catch (error) { showError(null, error); }
   }
 
@@ -1136,8 +1175,20 @@
   ui.welcomeCreateBtn.addEventListener('click', openCreateModal);
   ui.createVersionBtn.addEventListener('click', openCreateVersionModal);
   ui.createVersionForm.addEventListener('submit', handleCreateVersion);
-  ui.toggleVersionStatusBtn.addEventListener('click', toggleVersionStatus);
-  ui.versionSelect.addEventListener('change', renderVersionManager);
+  ui.versionList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-version-action]');
+    const row = event.target.closest('[data-version-file]');
+    if (!button || !row) return;
+    const versions = Array.isArray(state.currentMetadata?.versions) ? state.currentMetadata.versions : [];
+    const version = versions.find((item) => item.fileName === row.dataset.versionFile);
+    if (!version) return;
+    const action = button.dataset.versionAction;
+    if (action === 'edit') loadVersion(version.fileName);
+    if (action === 'preview') previewVersion(version);
+    if (action === 'request') requestVersion(version);
+    if (action === 'status') toggleVersionStatus(version);
+    if (action === 'delete') deleteVersion(version);
+  });
   ui.deleteAppBtn.addEventListener('click', deleteCurrentApp);
   ui.saveAppBottomBtn.addEventListener('click', saveCurrentApp);
   ui.updateVersionBtn.addEventListener('click', updateVersionFromAppStore);

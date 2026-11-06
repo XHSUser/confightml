@@ -246,6 +246,19 @@
     return { ...result, path: filePath, document, status, version: version.version };
   }
 
+  async function deleteVersion(connection, commonFilePath, filePath, connectionId) {
+    const payload = await readRemoteFile(connection, filePath);
+    if (!payload) throw new Error('没有找到这个版本文件');
+    const { document: directory, sha: directorySha } = await readDirectory(connection);
+    const common = findDirectoryApp(directory, commonFilePath);
+    if (!common?.versions?.some((item) => item.fileName === filePath)) throw new Error('应用目录中没有登记这个版本');
+    await deleteRemoteFile(connection, filePath, payload.sha, `删除版本 ${filePath}`);
+    common.versions = common.versions.filter((item) => item.fileName !== filePath);
+    await writeDirectory(connection, directory, directorySha, '删除版本记录');
+    if (connectionId) cacheApps(connectionId, await listApps(connection));
+    return { path: filePath };
+  }
+
   async function writeRemoteJson(connection, filePath, document, sha, message) {
     const repo = normalizeRepo(connection.repo);
     const body = {
@@ -272,11 +285,13 @@
     const document = decodeContent(payload, '应用配置');
     const { document: directory } = await readDirectory(connection);
     const item = directory.apps.find((entry) => (entry.fileName || entry.file) === filePath);
+    const parent = item ? null : directory.apps.find((entry) => entry.versions?.some((version) => version.fileName === filePath));
+    const version = parent?.versions?.find((entry) => entry.fileName === filePath);
     const metadata = item ? {
       ...item,
       name: String(item.name || item.displayName || filePath.replace(/\.json$/i, '')),
       fileName: filePath
-    } : { name: filePath.replace(/\.json$/i, ''), fileName: filePath };
+    } : parent ? { ...parent, name: String(parent.name || filePath.replace(/\.json$/i, '')), fileName: filePath, commonFileName: parent.fileName, version: version.version, status: version.status } : { name: filePath.replace(/\.json$/i, ''), fileName: filePath };
     return { path: payload.path, sha: payload.sha, document, metadata };
   }
 
@@ -347,12 +362,20 @@
   }
 
   async function writeApp(connection, filePath, document, sha, message, metadata, connectionId) {
+    if (metadata?.commonFileName && metadata.status === 'review') document = { paylist: clone(Array.isArray(document?.paylist) ? document.paylist : []) };
     document = window.configJSON.omitEmptyFields(document);
     const result = await writeRemoteJson(connection, filePath, document, sha, message || `更新应用配置 ${filePath}`);
     if (metadata) {
       const { document: directory, sha: directorySha } = await readDirectory(connection);
       const index = directory.apps.findIndex((item) => (item.fileName || item.file) === filePath);
-      if (index < 0) throw new Error('应用目录中已找不到此应用，配置内容已保存，请刷新后重试');
+      if (index < 0) {
+        const parent = directory.apps.find((item) => item.versions?.some((version) => version.fileName === filePath));
+        if (parent) {
+          if (connectionId) cacheApp(connectionId, { path: result.path || filePath, sha: result.sha, document, metadata });
+          return result;
+        }
+        throw new Error('应用目录中已找不到此应用，配置内容已保存，请刷新后重试');
+      }
       const info = validateAppInfo(metadata);
       const currentInfo = directory.apps[index];
       if (currentInfo.name !== info.name || (currentInfo.packageName || '') !== info.packageName || (currentInfo.appStoreUrl || '') !== info.appStoreUrl) {
@@ -514,6 +537,7 @@
     },
     createVersion: async (connectionId, commonFilePath, version) => createVersion(getConnection(readState(), connectionId), commonFilePath, version, connectionId),
     setVersionStatus: async (connectionId, commonFilePath, filePath, status) => setVersionStatus(getConnection(readState(), connectionId), commonFilePath, filePath, status, connectionId),
+    deleteVersion: async (connectionId, commonFilePath, filePath) => deleteVersion(getConnection(readState(), connectionId), commonFilePath, filePath, connectionId),
     createApp: async (connectionId, input) => {
       const state = readState();
       const connection = getConnection(state, connectionId);
