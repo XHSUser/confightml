@@ -274,7 +274,7 @@
       const document = versionDocument(commonDocument, version.status, version.version);
       const result = await writeRemoteJson(connection, version.fileName, document, payload.sha, `同步版本 ${version.fileName}`);
       results.push({ fileName: version.fileName, version: version.version, status: version.status, sha: result.sha });
-      if (connectionId) cacheApp(connectionId, { path: version.fileName, sha: result.sha, document, metadata: { ...common, fileName: version.fileName, commonFileName, version: version.version, status: version.status } });
+      if (connectionId) cacheApp(connectionId, { path: version.fileName, sha: result.sha, document, metadata: { ...common, fileName: version.fileName, commonFileName: commonFilePath, version: version.version, status: version.status } });
     }
     if (connectionId) cacheApps(connectionId, await listApps(connection));
     return { commonFilePath, results };
