@@ -28,6 +28,7 @@
     formGrid: $('.form-grid'),
     editorTitle: $('#editorTitle'),
     editorMetaText: $('#editorMetaText'),
+    versionStatusBadge: $('#versionStatusBadge'),
     saveState: $('#saveState'),
     deleteAppBtn: $('#deleteAppBtn'),
     saveAppBottomBtn: $('#saveAppBottomBtn'),
@@ -448,6 +449,10 @@
     ui.testRequestPath.value = state.selectedPath ? state.selectedPath.replace(/\.json$/i, '') : '';
     ui.editorTitle.textContent = state.currentMetadata?.name || '应用配置';
     ui.editorMetaText.textContent = '已加载';
+    const editingVersion = Boolean(state.currentMetadata?.commonFileName);
+    ui.versionStatusBadge.hidden = !editingVersion;
+    ui.versionStatusBadge.textContent = editingVersion ? (state.currentMetadata.status === 'online' ? '已上线' : '审核中') : '';
+    ui.versionStatusBadge.className = `editor-version-status ${state.currentMetadata.status === 'online' ? 'online' : 'review'}`;
     ui.saveState.textContent = '';
     ui.saveState.className = 'save-state';
     setDetailPage(true);

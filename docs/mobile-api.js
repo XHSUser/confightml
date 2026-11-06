@@ -385,6 +385,12 @@
       if (index < 0) {
         const parent = directory.apps.find((item) => item.versions?.some((version) => version.fileName === filePath));
         if (parent) {
+          const versionEntry = parent.versions.find((version) => version.fileName === filePath);
+          const nextVersion = metadata.status === 'online' ? String(document.app?.version || metadata.version || '').trim() : versionEntry.version;
+          if (metadata.status === 'online' && nextVersion && versionEntry.version !== nextVersion) {
+            versionEntry.version = nextVersion;
+            await writeDirectory(connection, directory, directorySha, '更新版本号');
+          }
           if (connectionId) cacheApp(connectionId, { path: result.path || filePath, sha: result.sha, document, metadata });
           return result;
         }
