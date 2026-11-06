@@ -99,6 +99,10 @@
                 <label class="field"><span>应用总开关</span><button type="button" class="switch-control" id="appOnToggle" data-toggle="app-on" data-value="1" data-on-text="开启" data-off-text="关闭" aria-pressed="true"><span class="switch-knob"></span><strong>开启</strong></button></label>
                 <label class="field"><span class="version-field-label">当前版本 <button type="button" class="text-button version-update-button" id="updateVersionBtn">更新</button></span><input id="appVersion" type="text" inputmode="decimal" pattern="^[0-9]+\.[0-9]+(?:\.[0-9]+)?$" placeholder="例如 1.0 或 1.0.0" /></label>
               </div>
+              <div class="version-manager" id="versionManager">
+                <div><strong>版本发布</strong><small id="versionStatusHint">通用 JSON：保存所有配置的完整内容</small></div>
+                <div class="version-manager-actions"><select id="versionSelect" aria-label="选择版本"><option value="">还没有版本</option></select><button type="button" class="button secondary small" id="createVersionBtn">＋ 创建版本</button><button type="button" class="button primary small" id="toggleVersionStatusBtn" hidden></button></div>
+              </div>
             </section>
 
             <section class="panel span-full" id="section-payment" role="tabpanel" aria-labelledby="tab-payment" data-config-section="payment" hidden>
@@ -194,6 +198,18 @@
         <label class="field"><span>英文文件名</span><input id="newAppFileName" type="text" placeholder="留空自动生成唯一名称" /><small>可手动设置；只能使用英文、数字、下划线或短横线。</small></label>
         <div class="form-error" id="createAppError"></div>
         <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="createAppModal">取消</button><button type="submit" class="button primary">创建并打开</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="createVersionModal" hidden>
+    <div class="modal small-modal">
+      <div class="modal-header"><div><div class="eyebrow">RELEASE VERSION</div><h2>创建版本配置</h2></div><button class="close-button" data-close-modal="createVersionModal">×</button></div>
+      <p class="modal-description">新版本先进入审核中，只写入通用配置的 paylist。</p>
+      <form id="createVersionForm">
+        <label class="field"><span>版本号 <strong class="required">必填</strong></span><input id="newVersionNumber" type="text" inputmode="decimal" placeholder="例如 1.0 或 1.0.0" pattern="^[0-9]+\.[0-9]+(?:\.[0-9]+)?$" required /></label>
+        <div class="form-error" id="createVersionError"></div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="createVersionModal">取消</button><button type="submit" class="button primary">创建审核版本</button></div>
       </form>
     </div>
   </div>

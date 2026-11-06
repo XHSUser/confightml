@@ -38,6 +38,11 @@
     appOnToggle: $('#appOnToggle'),
     appVersion: $('#appVersion'),
     updateVersionBtn: $('#updateVersionBtn'),
+    versionManager: $('#versionManager'),
+    versionStatusHint: $('#versionStatusHint'),
+    versionSelect: $('#versionSelect'),
+    createVersionBtn: $('#createVersionBtn'),
+    toggleVersionStatusBtn: $('#toggleVersionStatusBtn'),
     revenueUrl: $('#revenueUrl'),
     revenueKey: $('#revenueKey'),
     revenueOffername: $('#revenueOffername'),
@@ -69,6 +74,10 @@
     newAppStoreUrl: $('#newAppStoreUrl'),
     newAppFileName: $('#newAppFileName'),
     createAppError: $('#createAppError'),
+    createVersionModal: $('#createVersionModal'),
+    createVersionForm: $('#createVersionForm'),
+    newVersionNumber: $('#newVersionNumber'),
+    createVersionError: $('#createVersionError'),
     addPayBtn: $('#addPayBtn'),
     addSwitchBtn: $('#addSwitchBtn'),
     addOtherBtn: $('#addOtherBtn'),
@@ -117,6 +126,7 @@
     toastTimer: null,
     loadAppSequence: 0,
     validationAttempted: false
+    ,currentVersion: null
   };
 
   const emptyDocument = () => ({
@@ -441,6 +451,26 @@
     ui.saveState.className = 'save-state';
     setDetailPage(true);
     setEditorVisible(true);
+    renderVersionManager();
+  }
+
+  function renderVersionManager() {
+    const versions = Array.isArray(state.currentMetadata?.versions) ? state.currentMetadata.versions : [];
+    ui.versionSelect.innerHTML = versions.length
+      ? versions.map((item) => `<option value="${escapeHtml(item.fileName)}" data-status="${escapeHtml(item.status || 'review')}">${escapeHtml(item.version)} · ${item.status === 'online' ? '已上线' : '审核中'}</option>`).join('')
+      : '<option value="">还没有版本</option>';
+    state.currentVersion = versions.find((item) => item.fileName === ui.versionSelect.value) || null;
+    ui.toggleVersionStatusBtn.hidden = !state.currentVersion;
+    if (state.currentVersion) {
+      const online = state.currentVersion.status === 'online';
+      ui.toggleVersionStatusBtn.textContent = online ? '退回审核' : '上线版本';
+      ui.toggleVersionStatusBtn.className = `button ${online ? 'secondary' : 'primary'} small`;
+      ui.versionStatusHint.textContent = `${state.currentVersion.version} · ${online ? '已上线：版本文件包含通用配置全部内容' : '审核中：版本文件只包含 paylist'}`;
+      ui.versionStatusHint.className = online ? 'version-status-online' : 'version-status-review';
+    } else {
+      ui.versionStatusHint.textContent = '通用 JSON：保存所有配置的完整内容';
+      ui.versionStatusHint.className = '';
+    }
   }
 
   function syncFormToDocument() {
@@ -654,6 +684,36 @@
     ui.newAppFileName.value = '';
     if (!activeConnection()) { openConnectionModal(); return; }
     openModal(ui.createAppModal);
+  }
+
+  function openCreateVersionModal() {
+    if (!state.current || !state.selectedPath) return;
+    ui.createVersionError.textContent = '';
+    ui.newVersionNumber.value = '';
+    openModal(ui.createVersionModal);
+  }
+
+  async function handleCreateVersion(event) {
+    event.preventDefault();
+    ui.createVersionError.textContent = '';
+    try {
+      const result = await request(() => window.desktopAPI.createVersion(activeConnection().id, state.selectedPath, ui.newVersionNumber.value), '正在创建审核版本…');
+      closeModal(ui.createVersionModal);
+      showToast(`版本 ${result.version} 已创建，当前为审核中`);
+      await loadApps();
+    } catch (error) { showError(ui.createVersionError, error); }
+  }
+
+  async function toggleVersionStatus() {
+    if (!state.currentVersion || !state.selectedPath) return;
+    const nextStatus = state.currentVersion.status === 'online' ? 'review' : 'online';
+    const action = nextStatus === 'online' ? '上线' : '退回审核';
+    if (!window.confirm(`确定将版本 ${state.currentVersion.version} ${action}吗？${nextStatus === 'online' ? '上线后会把通用 JSON 的全部内容复制到版本文件。' : '退回后版本文件只保留 paylist。'}`)) return;
+    try {
+      await request(() => window.desktopAPI.setVersionStatus(activeConnection().id, state.selectedPath, state.currentVersion.fileName, nextStatus), `正在${action}…`);
+      showToast(`版本已${action}`);
+      await loadApps();
+    } catch (error) { showError(null, error); }
   }
 
   function applyRawConfig() {
@@ -1074,6 +1134,10 @@
   });
   ui.createAppBtn.addEventListener('click', openCreateModal);
   ui.welcomeCreateBtn.addEventListener('click', openCreateModal);
+  ui.createVersionBtn.addEventListener('click', openCreateVersionModal);
+  ui.createVersionForm.addEventListener('submit', handleCreateVersion);
+  ui.toggleVersionStatusBtn.addEventListener('click', toggleVersionStatus);
+  ui.versionSelect.addEventListener('change', renderVersionManager);
   ui.deleteAppBtn.addEventListener('click', deleteCurrentApp);
   ui.saveAppBottomBtn.addEventListener('click', saveCurrentApp);
   ui.updateVersionBtn.addEventListener('click', updateVersionFromAppStore);

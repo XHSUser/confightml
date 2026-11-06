@@ -168,7 +168,7 @@
 
   async function listApps(connection) {
     const { document } = await readDirectory(connection);
-    return document.apps.map((item) => {
+    const entries = document.apps.map((item) => {
       if (!item || typeof item !== 'object') return null;
       const fileName = String(item.fileName || item.file || '').trim();
       if (!fileName) return null;
@@ -179,6 +179,71 @@
         path: fileName
       };
     }).filter(Boolean);
+    const byPath = new Map(entries.map((item) => [item.fileName, item]));
+    const versionPattern = /^(.*)_(\d+\.\d+(?:\.\d+)?)\.json$/i;
+    const apps = entries.filter((item) => !versionPattern.test(item.fileName));
+    entries.filter((item) => versionPattern.test(item.fileName)).forEach((item) => {
+      const match = item.fileName.match(versionPattern);
+      const common = byPath.get(`${match[1]}.json`);
+      if (!common) apps.push(item);
+      else {
+        common.versions = Array.isArray(common.versions) ? common.versions : [];
+        if (!common.versions.some((version) => version.fileName === item.fileName)) {
+          common.versions.push({ version: match[2], fileName: item.fileName, status: item.status || 'review' });
+        }
+      }
+    });
+    return apps;
+  }
+
+  function versionFileName(commonFilePath, version) {
+    const clean = String(version || '').trim();
+    if (!/^\d+\.\d+(?:\.\d+)?$/.test(clean)) throw new Error('版本号需填写类似 1.0 或 1.0.0');
+    const common = String(commonFilePath || '').replace(/\.json$/i, '');
+    return `${common}_${clean}.json`;
+  }
+
+  function findDirectoryApp(directory, filePath) {
+    return directory.apps.find((item) => (item.fileName || item.file) === filePath);
+  }
+
+  function versionDocument(document, status) {
+    if (status === 'online') return window.configJSON.omitEmptyFields(clone(document));
+    return { paylist: clone(Array.isArray(document?.paylist) ? document.paylist : []) };
+  }
+
+  async function createVersion(connection, commonFilePath, version, connectionId) {
+    const filePath = versionFileName(commonFilePath, version);
+    const commonPayload = await readRemoteFile(connection, commonFilePath);
+    if (!commonPayload) throw new Error('没有找到通用 JSON');
+    if (await readRemoteFile(connection, filePath)) throw new Error(`版本 ${version} 已存在`);
+    const { document: directory, sha: directorySha } = await readDirectory(connection);
+    const common = findDirectoryApp(directory, commonFilePath);
+    if (!common) throw new Error('应用目录中没有登记通用 JSON');
+    const document = versionDocument(decodeContent(commonPayload, '通用配置'), 'review');
+    const result = await writeRemoteJson(connection, filePath, document, null, `创建审核版本 ${filePath}`);
+    common.versions = Array.isArray(common.versions) ? common.versions : [];
+    common.versions.push({ version: String(version).trim(), fileName: filePath, status: 'review' });
+    const directoryResult = await writeDirectory(connection, directory, directorySha, '登记审核版本');
+    if (connectionId) { cacheApps(connectionId, await listApps(connection)); cacheApp(connectionId, { path: filePath, sha: result.sha, document, metadata: { ...common, fileName: filePath, version: String(version).trim(), status: 'review' } }); }
+    return { ...result, path: filePath, document, version: String(version).trim(), status: 'review', directorySha: directoryResult.sha };
+  }
+
+  async function setVersionStatus(connection, commonFilePath, filePath, status, connectionId) {
+    if (!['review', 'online'].includes(status)) throw new Error('版本状态不正确');
+    const commonPayload = await readRemoteFile(connection, commonFilePath);
+    const versionPayload = await readRemoteFile(connection, filePath);
+    if (!commonPayload || !versionPayload) throw new Error('没有找到通用 JSON 或版本 JSON');
+    const document = versionDocument(decodeContent(commonPayload, '通用配置'), status);
+    const result = await writeRemoteJson(connection, filePath, document, versionPayload.sha, `${status === 'online' ? '上线' : '退回审核'}版本 ${filePath}`);
+    const { document: directory, sha: directorySha } = await readDirectory(connection);
+    const common = findDirectoryApp(directory, commonFilePath);
+    const version = common?.versions?.find((item) => item.fileName === filePath);
+    if (!version) throw new Error('应用目录中没有登记这个版本');
+    version.status = status;
+    await writeDirectory(connection, directory, directorySha, '更新版本状态');
+    if (connectionId) { cacheApps(connectionId, await listApps(connection)); cacheApp(connectionId, { path: filePath, sha: result.sha, document, metadata: { ...common, fileName: filePath, version: version.version, status } }); }
+    return { ...result, path: filePath, document, status, version: version.version };
   }
 
   async function writeRemoteJson(connection, filePath, document, sha, message) {
@@ -447,6 +512,8 @@
       const result = await readApp(getConnection(state, connectionId), filePath);
       return { path: result.path, document: result.document, metadata: result.metadata };
     },
+    createVersion: async (connectionId, commonFilePath, version) => createVersion(getConnection(readState(), connectionId), commonFilePath, version, connectionId),
+    setVersionStatus: async (connectionId, commonFilePath, filePath, status) => setVersionStatus(getConnection(readState(), connectionId), commonFilePath, filePath, status, connectionId),
     createApp: async (connectionId, input) => {
       const state = readState();
       const connection = getConnection(state, connectionId);
