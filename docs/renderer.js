@@ -41,6 +41,7 @@
     updateVersionBtn: $('#updateVersionBtn'),
     versionManager: $('#versionManager'),
     versionStatusHint: $('#versionStatusHint'),
+    syncVersionsBtn: $('#syncVersionsBtn'),
     versionList: $('#versionList'),
     createVersionBtn: $('#createVersionBtn'),
     revenueUrl: $('#revenueUrl'),
@@ -701,6 +702,18 @@
     } catch (error) { showError(ui.createVersionError, error); }
   }
 
+  async function syncAllVersions() {
+    if (!state.commonFilePath) return;
+    const versions = Array.isArray(state.currentMetadata?.versions) ? state.currentMetadata.versions : [];
+    if (!versions.length) return showToast('当前还没有可同步的版本');
+    if (!window.confirm(`确定同步全部 ${versions.length} 个版本吗？已上线版本同步完整配置，审核中版本只同步 paylist。`)) return;
+    try {
+      const result = await request(() => window.desktopAPI.syncVersions(activeConnection().id, state.commonFilePath), '正在同步全部版本…');
+      showToast(`已同步 ${result.results.length} 个版本`);
+      await loadApps();
+    } catch (error) { showError(null, error); }
+  }
+
   async function toggleVersionStatus(version) {
     if (!version || !state.commonFilePath) return;
     const nextStatus = version.status === 'online' ? 'review' : 'online';
@@ -1179,6 +1192,7 @@
   ui.createAppBtn.addEventListener('click', openCreateModal);
   ui.welcomeCreateBtn.addEventListener('click', openCreateModal);
   ui.createVersionBtn.addEventListener('click', openCreateVersionModal);
+  ui.syncVersionsBtn.addEventListener('click', syncAllVersions);
   ui.createVersionForm.addEventListener('submit', handleCreateVersion);
   ui.versionList.addEventListener('click', (event) => {
     const button = event.target.closest('[data-version-action]');

@@ -260,6 +260,26 @@
     return { ...result, path: filePath, document, status, version: version.version };
   }
 
+  async function syncVersions(connection, commonFilePath, connectionId) {
+    const commonPayload = await readRemoteFile(connection, commonFilePath);
+    if (!commonPayload) throw new Error('没有找到通用 JSON');
+    const { document: directory } = await readDirectory(connection);
+    const common = findDirectoryApp(directory, commonFilePath);
+    if (!common) throw new Error('应用目录中没有登记通用 JSON');
+    const commonDocument = decodeContent(commonPayload, '通用配置');
+    const results = [];
+    for (const version of (common.versions || [])) {
+      const payload = await readRemoteFile(connection, version.fileName);
+      if (!payload) continue;
+      const document = versionDocument(commonDocument, version.status, version.version);
+      const result = await writeRemoteJson(connection, version.fileName, document, payload.sha, `同步版本 ${version.fileName}`);
+      results.push({ fileName: version.fileName, version: version.version, status: version.status, sha: result.sha });
+      if (connectionId) cacheApp(connectionId, { path: version.fileName, sha: result.sha, document, metadata: { ...common, fileName: version.fileName, commonFileName, version: version.version, status: version.status } });
+    }
+    if (connectionId) cacheApps(connectionId, await listApps(connection));
+    return { commonFilePath, results };
+  }
+
   async function deleteVersion(connection, commonFilePath, filePath, connectionId) {
     const payload = await readRemoteFile(connection, filePath);
     if (!payload) throw new Error('没有找到这个版本文件');
@@ -558,6 +578,7 @@
     createVersion: async (connectionId, commonFilePath, version) => createVersion(getConnection(readState(), connectionId), commonFilePath, version, connectionId),
     setVersionStatus: async (connectionId, commonFilePath, filePath, status) => setVersionStatus(getConnection(readState(), connectionId), commonFilePath, filePath, status, connectionId),
     deleteVersion: async (connectionId, commonFilePath, filePath) => deleteVersion(getConnection(readState(), connectionId), commonFilePath, filePath, connectionId),
+    syncVersions: async (connectionId, commonFilePath) => syncVersions(getConnection(readState(), connectionId), commonFilePath, connectionId),
     createApp: async (connectionId, input) => {
       const state = readState();
       const connection = getConnection(state, connectionId);

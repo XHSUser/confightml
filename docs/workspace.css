@@ -467,6 +467,7 @@ body { background-color: var(--color-paper); }
 }
 .version-manager-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); }
 .version-manager-heading > div { display: grid; gap: 3px; }
+.version-manager-heading-actions { display: flex !important; align-items: center; gap: var(--space-xs); }
 .version-manager small { color: var(--color-ink-2); }
 .version-manager-actions { display: flex; align-items: center; gap: var(--space-xs); }
 .version-manager-actions select { min-width: 150px; }
@@ -487,6 +488,7 @@ body { background-color: var(--color-paper); }
 .version-status-online { color: var(--color-accent); }
 @media (max-width: 700px) {
   .version-manager-heading { align-items: stretch; flex-direction: column; }
+  .version-manager-heading-actions { justify-content: flex-start; }
   .version-row { align-items: stretch; flex-direction: column; }
   .version-row-actions { justify-content: flex-start; }
 }
