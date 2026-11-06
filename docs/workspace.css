@@ -193,6 +193,7 @@ body { background-color: var(--color-paper); }
 }
 .switch-index small { font-size: var(--text-xs); }
 .switch-index strong { font-family: var(--font-code); font-size: var(--text-base); }
+.switch-row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .switch-row input.switch-key-field[aria-invalid="true"] {
   border-color: var(--color-error);
   outline: 2px solid var(--color-error);
@@ -290,7 +291,7 @@ body { background-color: var(--color-paper); }
   .switch-row input.switch-tip-field { grid-column: 1 / -1; grid-row: 2; }
   .switch-row select.switch-type-field { grid-column: 1 / 3; grid-row: 3; }
   .switch-row .switch-control { grid-column: 3; grid-row: 3; }
-  .switch-row .row-action { grid-column: 4; grid-row: 1; }
+  .switch-row-actions { grid-column: 4; grid-row: 1; }
 }
 
 @media (max-width: 900px) {

@@ -387,7 +387,7 @@
           ${switchTypes.map(({ value, label }) => `<option value="${value}" ${selectedType === String(value) ? 'selected' : ''}>${label}</option>`).join('')}
         </select>
         <button type="button" class="switch-control ${Number(item.open) === 1 ? 'on' : ''}" data-toggle="switch" data-value="${Number(item.open) === 1 ? 1 : 0}" data-on-text="开启" data-off-text="关闭" aria-pressed="${Number(item.open) === 1}"><span class="switch-knob"></span><strong>${Number(item.open) === 1 ? '开启' : '关闭'}</strong></button>
-        <button type="button" class="row-action delete" data-switch-action="delete" title="删除" aria-label="删除开关">×</button>
+        <span class="switch-row-actions"><button type="button" class="row-action" data-switch-action="up" title="上移" aria-label="上移开关">↑</button><button type="button" class="row-action" data-switch-action="down" title="下移" aria-label="下移开关">↓</button><button type="button" class="row-action delete" data-switch-action="delete" title="删除" aria-label="删除开关">×</button></span>
       </div>`;
     }).join('');
     markDuplicateSwitchKeys();
@@ -1098,7 +1098,11 @@
     const row = button.closest('[data-switch-index]');
     if (!row) return;
     syncFormToDocument();
-    state.current.switch.splice(Number(row.dataset.switchIndex), 1);
+    const index = Number(row.dataset.switchIndex);
+    const action = button.dataset.switchAction;
+    if (action === 'delete') state.current.switch.splice(index, 1);
+    if (action === 'up' && index > 0) [state.current.switch[index - 1], state.current.switch[index]] = [state.current.switch[index], state.current.switch[index - 1]];
+    if (action === 'down' && index < state.current.switch.length - 1) [state.current.switch[index + 1], state.current.switch[index]] = [state.current.switch[index], state.current.switch[index + 1]];
     renderSwitchList();
   }
 
