@@ -100,6 +100,7 @@
     payEditTip2: $('#payEditTip2'),
     payEditError: $('#payEditError'),
     rawConfig: $('#rawConfig'),
+    rawConfigHint: $('.raw-hint'),
     applyRawConfigBtn: $('#applyRawConfigBtn'),
     previewBtn: $('#previewBtn'),
     testRequestBtn: $('#testRequestBtn'),
@@ -425,6 +426,7 @@
     if (!state.current) { setEditorVisible(false); return; }
     state.validationAttempted = false;
     ui.editorSections.querySelectorAll('.has-error').forEach((tab) => tab.classList.remove('has-error'));
+    if (Array.isArray(state.current)) state.current = { paylist: state.current };
     const document = state.current;
     document.app ||= {};
     document.revenue ||= {};
@@ -446,7 +448,10 @@
     renderPayList();
     renderSwitchList();
     renderOtherList();
-    ui.rawConfig.value = JSON.stringify(window.configJSON.omitEmptyFields(document), null, 2);
+    ui.rawConfig.value = JSON.stringify(configOutput(document), null, 2);
+    const reviewing = state.currentMetadata?.commonFileName && state.currentMetadata.status !== 'online';
+    ui.rawConfigHint.textContent = reviewing ? '套餐数组' : '内容需为一个对象';
+    ui.rawConfig.placeholder = reviewing ? '请输入套餐数组' : '请输入对象内容';
     ui.testRequestPath.value = state.selectedPath ? state.selectedPath.replace(/\.json$/i, '') : '';
     ui.editorTitle.textContent = state.currentMetadata?.name || '应用配置';
     ui.editorMetaText.textContent = '已加载';
@@ -515,6 +520,13 @@
     }));
   }
 
+  function configOutput(document) {
+    if (state.currentMetadata?.commonFileName && state.currentMetadata.status !== 'online') {
+      return clone(Array.isArray(document) ? document : (Array.isArray(document?.paylist) ? document.paylist : []));
+    }
+    return window.configJSON.omitEmptyFields(document);
+  }
+
   function normaliseDocument() {
     syncFormToDocument();
     const document = state.current;
@@ -553,7 +565,7 @@
       if (next.default === 1) defaultFound = true;
       return next;
     });
-    const output = window.configJSON.omitEmptyFields(document);
+    const output = configOutput(document);
     ui.rawConfig.value = JSON.stringify(output, null, 2);
     return output;
   }
@@ -777,8 +789,9 @@
     if (!state.current) return;
     try {
       const parsed = JSON.parse(ui.rawConfig.value);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('内容需为一个对象');
-      state.current = parsed;
+      const reviewing = state.currentMetadata?.commonFileName && state.currentMetadata.status !== 'online';
+      if (!parsed || typeof parsed !== 'object' || (Array.isArray(parsed) && !reviewing)) throw new Error(reviewing ? '内容需为套餐数组或包含 paylist 的对象' : '内容需为一个对象');
+      state.current = Array.isArray(parsed) ? { paylist: parsed } : parsed;
       renderEditor();
       showToast('文本配置已应用');
     } catch (error) { showError(null, error); }

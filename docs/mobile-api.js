@@ -223,7 +223,7 @@
       output.app.version = String(version || '').trim();
       return output;
     }
-    return { paylist: clone(Array.isArray(document?.paylist) ? document.paylist : []) };
+    return clone(Array.isArray(document?.paylist) ? document.paylist : []);
   }
 
   async function createVersion(connection, commonFilePath, version, connectionId) {
@@ -396,8 +396,9 @@
   }
 
   async function writeApp(connection, filePath, document, sha, message, metadata, connectionId) {
-    if (metadata?.commonFileName && metadata.status === 'review') document = { paylist: clone(Array.isArray(document?.paylist) ? document.paylist : []) };
-    document = window.configJSON.omitEmptyFields(document);
+    if (metadata?.commonFileName && metadata.status !== 'online') {
+      document = clone(Array.isArray(document) ? document : (Array.isArray(document?.paylist) ? document.paylist : []));
+    } else document = window.configJSON.omitEmptyFields(document);
     const result = await writeRemoteJson(connection, filePath, document, sha, message || `更新应用配置 ${filePath}`);
     if (metadata) {
       const { document: directory, sha: directorySha } = await readDirectory(connection);
@@ -547,7 +548,7 @@
     },
     saveApp: async ({ connectionId, filePath, document, sha, message, metadata }) => {
       const state = readState();
-      if (!document || typeof document !== 'object' || Array.isArray(document)) throw new Error('配置内容需为对象格式');
+      if (!document || typeof document !== 'object' || (Array.isArray(document) && !(metadata?.commonFileName && metadata.status !== 'online'))) throw new Error('通用及上线配置需为对象，审核配置可为套餐数组');
       return writeApp(getConnection(state, connectionId), filePath, document, sha, message, metadata, connectionId);
     },
     deleteApp: async (connectionId, filePath) => {
