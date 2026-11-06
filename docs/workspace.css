@@ -457,9 +457,7 @@ body { background-color: var(--color-paper); }
 
 .editor { position: relative; }
 .version-manager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: var(--space-md);
   margin-top: var(--space-md);
   padding: var(--space-md);
@@ -467,7 +465,8 @@ body { background-color: var(--color-paper); }
   border-radius: var(--radius-panel);
   background: var(--color-surface-muted);
 }
-.version-manager > div:first-child { display: grid; gap: 3px; }
+.version-manager-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); }
+.version-manager-heading > div { display: grid; gap: 3px; }
 .version-manager small { color: var(--color-ink-2); }
 .version-manager-actions { display: flex; align-items: center; gap: var(--space-xs); }
 .version-manager-actions select { min-width: 150px; }
@@ -484,9 +483,7 @@ body { background-color: var(--color-paper); }
 .version-status-review { color: var(--color-ink-2); }
 .version-status-online { color: var(--color-accent); }
 @media (max-width: 700px) {
-  .version-manager { align-items: stretch; flex-direction: column; }
-  .version-manager-actions { flex-wrap: wrap; }
-  .version-manager-actions select { flex: 1 1 180px; }
+  .version-manager-heading { align-items: stretch; flex-direction: column; }
   .version-row { align-items: stretch; flex-direction: column; }
   .version-row-actions { justify-content: flex-start; }
 }

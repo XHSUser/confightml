@@ -207,8 +207,13 @@
     return directory.apps.find((item) => (item.fileName || item.file) === filePath);
   }
 
-  function versionDocument(document, status) {
-    if (status === 'online') return window.configJSON.omitEmptyFields(clone(document));
+  function versionDocument(document, status, version) {
+    if (status === 'online') {
+      const output = window.configJSON.omitEmptyFields(clone(document));
+      output.app ||= {};
+      output.app.version = String(version || '').trim();
+      return output;
+    }
     return { paylist: clone(Array.isArray(document?.paylist) ? document.paylist : []) };
   }
 
@@ -234,12 +239,12 @@
     const commonPayload = await readRemoteFile(connection, commonFilePath);
     const versionPayload = await readRemoteFile(connection, filePath);
     if (!commonPayload || !versionPayload) throw new Error('没有找到通用 JSON 或版本 JSON');
-    const document = versionDocument(decodeContent(commonPayload, '通用配置'), status);
-    const result = await writeRemoteJson(connection, filePath, document, versionPayload.sha, `${status === 'online' ? '上线' : '退回审核'}版本 ${filePath}`);
     const { document: directory, sha: directorySha } = await readDirectory(connection);
     const common = findDirectoryApp(directory, commonFilePath);
     const version = common?.versions?.find((item) => item.fileName === filePath);
     if (!version) throw new Error('应用目录中没有登记这个版本');
+    const document = versionDocument(decodeContent(commonPayload, '通用配置'), status, version.version);
+    const result = await writeRemoteJson(connection, filePath, document, versionPayload.sha, `${status === 'online' ? '上线' : '退回审核'}版本 ${filePath}`);
     version.status = status;
     await writeDirectory(connection, directory, directorySha, '更新版本状态');
     if (connectionId) { cacheApps(connectionId, await listApps(connection)); cacheApp(connectionId, { path: filePath, sha: result.sha, document, metadata: { ...common, fileName: filePath, version: version.version, status } }); }
