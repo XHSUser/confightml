@@ -1,0 +1,91 @@
+:root {
+  color-scheme: light;
+  --ink: #202124;
+  --muted: #6b7078;
+  --line: #e5e7eb;
+  --surface: #ffffff;
+  --canvas: #f5f6f8;
+  --accent: #2458d6;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--canvas); }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.85;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.reading-page { min-height: 100vh; }
+
+.topbar, .footer {
+  width: min(920px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+.document {
+  width: min(920px, calc(100% - 40px));
+  margin: 0 auto 22px;
+  padding: clamp(28px, 5vw, 64px) clamp(22px, 6vw, 76px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 35px rgba(32, 33, 36, .06);
+}
+
+.document-header {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 13px;
+  letter-spacing: .08em;
+}
+
+h1, h2 { line-height: 1.35; }
+h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); font-weight: 700; }
+h2 { margin: 32px 0 12px; font-size: 20px; font-weight: 700; }
+
+.source {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.content { padding-top: 22px; }
+.content p { margin: 0 0 14px; white-space: pre-wrap; }
+.content .ordered { padding-left: 2.25em; text-indent: -2.25em; }
+.marker { display: inline-block; width: 2.25em; text-indent: 0; }
+
+.footer { padding-top: 0; padding-bottom: 36px; }
+
+.directory {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(28px, 6vw, 72px) 0;
+}
+
+.directory h1 { margin-bottom: 10px; }
+.directory-intro { margin: 0 0 30px; color: var(--muted); }
+.document-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.document-list li { border-bottom: 1px solid var(--line); }
+.document-list a { display: flex; justify-content: space-between; gap: 20px; padding: 18px 0; color: var(--ink); font-size: 17px; }
+.document-list a::after { content: "阅读 →"; color: var(--accent); font-size: 14px; }
+
+@media (max-width: 600px) {
+  .topbar, .footer, .document, .directory { width: min(100% - 24px, 920px); }
+  .document { padding: 28px 20px; }
+  .document-list a { font-size: 16px; }
+}
