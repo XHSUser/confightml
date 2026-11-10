@@ -16,6 +16,12 @@
     paylist: [],
     revenue: { url: 'https://api.rc-backup.com/', key: '', offername: 'offer', payname: 'pay' }
   };
+  const AGREEMENT_FIELDS = [
+    ['userAgreement', '用户协议'],
+    ['technicalSupport', '技术支持'],
+    ['privacyPolicy', '隐私政策'],
+    ['membershipAgreement', '会员协议']
+  ];
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const randomId = () => {
@@ -162,13 +168,36 @@
 
   async function readDirectory(connection) {
     const payload = await readRemoteFile(connection, DIRECTORY_FILE);
-    if (!payload) return { document: { apps: [] }, sha: null };
+    if (!payload) return { document: { subjects: [], apps: [] }, sha: null };
     let document = decodeContent(payload, '应用目录');
     if (Array.isArray(document)) document = { apps: document };
     if (!document || typeof document !== 'object') throw new Error('应用目录内容格式有误');
     if (!Array.isArray(document.apps) && Array.isArray(document.applications)) document.apps = document.applications;
     if (!Array.isArray(document.apps)) document.apps = [];
+    if (!Array.isArray(document.subjects)) document.subjects = [];
     return { document, sha: payload.sha };
+  }
+
+  function normaliseSubject(input) {
+    const name = String(input?.name || '').trim();
+    if (!name) throw new Error('请输入主体名称');
+    const agreements = {};
+    AGREEMENT_FIELDS.forEach(([key, label]) => {
+      agreements[key] = String(input?.agreements?.[key] || '').trim();
+      if (agreements[key] && !/^https?:\/\//i.test(agreements[key])) throw new Error(`${label}链接需以 http:// 或 https:// 开头`);
+    });
+    return { id: String(input?.id || randomId()), name, agreements };
+  }
+
+  async function saveSubject(connection, input, connectionId) {
+    const { document, sha } = await readDirectory(connection);
+    const subject = normaliseSubject(input);
+    const index = document.subjects.findIndex((item) => item?.id === subject.id);
+    if (index >= 0) document.subjects[index] = { ...document.subjects[index], ...subject };
+    else document.subjects.push(subject);
+    const result = await writeDirectory(connection, document, sha, index >= 0 ? '更新主体协议入口' : '创建主体');
+    if (connectionId) cacheApps(connectionId, await listApps(connection));
+    return { ...result, subject, subjects: document.subjects };
   }
 
   async function listApps(connection) {
@@ -392,7 +421,7 @@
     const packageName = String(input.packageName || '').trim();
     const appStoreUrl = String(input.appStoreUrl || '').trim();
     if (appStoreUrl && !/^https?:\/\//i.test(appStoreUrl)) throw new Error('商城链接需以 http:// 或 https:// 开头');
-    return { name, packageName, appStoreUrl };
+    return { name, packageName, appStoreUrl, subjectId: String(input.subjectId || '').trim() };
   }
 
   async function writeApp(connection, filePath, document, sha, message, metadata, connectionId) {
@@ -419,7 +448,7 @@
       }
       const info = validateAppInfo(metadata);
       const currentInfo = directory.apps[index];
-      if (currentInfo.name !== info.name || (currentInfo.packageName || '') !== info.packageName || (currentInfo.appStoreUrl || '') !== info.appStoreUrl) {
+      if (currentInfo.name !== info.name || (currentInfo.packageName || '') !== info.packageName || (currentInfo.appStoreUrl || '') !== info.appStoreUrl || (currentInfo.subjectId || '') !== info.subjectId) {
         directory.apps[index] = { ...currentInfo, ...info, fileName: filePath };
         await writeDirectory(connection, directory, directorySha, '更新应用信息');
       }
@@ -520,6 +549,12 @@
       writeState(state);
       return state;
     },
+    listSubjects: async (connectionId) => {
+      const state = readState();
+      const { document } = await readDirectory(getConnection(state, connectionId));
+      return document.subjects || [];
+    },
+    saveSubject: async (connectionId, input) => saveSubject(getConnection(readState(), connectionId), input, connectionId),
     exportConnections,
     importConnections,
     listApps: async (connectionId) => {
@@ -585,6 +620,7 @@
       const connection = getConnection(state, connectionId);
       const info = validateAppInfo(input);
       const { document: directory, sha: directorySha } = await readDirectory(connection);
+      if (!info.subjectId || !directory.subjects.some((item) => item?.id === info.subjectId)) throw new Error('请先选择有效的主体');
       const filePath = uniqueFileName(directory, input.fileName);
       if (await readRemoteFile(connection, filePath)) throw new Error('这个英文文件名对应的配置已存在，请换一个名称');
       const document = window.configJSON.omitEmptyFields(DEFAULT_DOCUMENT);

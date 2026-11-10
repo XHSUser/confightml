@@ -16,6 +16,8 @@
     appListPanel: $('#appListPanel'),
     toggleAppListBtn: $('#toggleAppListBtn'),
     appCount: $('#appCount'),
+    subjectSelect: $('#subjectSelect'),
+    manageSubjectsBtn: $('#manageSubjectsBtn'),
     refreshAppsBtn: $('#refreshAppsBtn'),
     createAppBtn: $('#createAppBtn'),
     welcomeCreateBtn: $('#welcomeCreateBtn'),
@@ -35,6 +37,7 @@
     appDisplayName: $('#appDisplayName'),
     appPackageName: $('#appPackageName'),
     appStoreUrl: $('#appStoreUrl'),
+    appSubjectSelect: $('#appSubjectSelect'),
     appAdToggle: $('#appAdToggle'),
     appOnToggle: $('#appOnToggle'),
     appVersion: $('#appVersion'),
@@ -75,6 +78,13 @@
     newAppStoreUrl: $('#newAppStoreUrl'),
     newAppFileName: $('#newAppFileName'),
     createAppError: $('#createAppError'),
+    subjectModal: $('#subjectModal'),
+    subjectModalTitle: $('#subjectModalTitle'),
+    subjectForm: $('#subjectForm'),
+    subjectId: $('#subjectId'),
+    subjectName: $('#subjectName'),
+    subjectError: $('#subjectError'),
+    newSubjectBtn: $('#newSubjectBtn'),
     createVersionModal: $('#createVersionModal'),
     createVersionForm: $('#createVersionForm'),
     newVersionNumber: $('#newVersionNumber'),
@@ -119,6 +129,8 @@
     connections: [],
     activeConnectionId: null,
     apps: [],
+    subjects: [],
+    activeSubjectId: null,
     selectedPath: null,
     current: null,
     currentMetadata: null,
@@ -131,6 +143,15 @@
     ,currentVersion: null,
     commonFilePath: null
   };
+
+  const ALL_SUBJECTS = '__all__';
+  const UNASSIGNED_SUBJECT = '__unassigned__';
+  const AGREEMENT_FIELDS = [
+    ['userAgreement', '用户协议'],
+    ['technicalSupport', '技术支持'],
+    ['privacyPolicy', '隐私政策'],
+    ['membershipAgreement', '会员协议']
+  ];
 
   const emptyDocument = () => ({
     app: { ad: 1, on: 1, version: '1.0.0' },
@@ -207,10 +228,93 @@
     ui.repoCaption.textContent = connection ? `${connection.name} · 当前连接` : '';
   }
 
+  function selectedSubject() {
+    return state.subjects.find((subject) => subject.id === state.activeSubjectId) || null;
+  }
+
+  function renderSubjectSelect() {
+    if (!ui.subjectSelect) return;
+    ui.subjectSelect.innerHTML = '';
+    if (!state.subjects.length) {
+      ui.subjectSelect.innerHTML = '<option value="">请先创建主体</option>';
+      ui.subjectSelect.disabled = true;
+      return;
+    }
+    ui.subjectSelect.disabled = false;
+    if (!state.activeSubjectId) state.activeSubjectId = state.subjects[0]?.id || ALL_SUBJECTS;
+    const options = [
+      `<option value="${ALL_SUBJECTS}">全部主体</option>`,
+      ...state.subjects.map((subject) => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`),
+      `<option value="${UNASSIGNED_SUBJECT}">未分配主体</option>`
+    ];
+    ui.subjectSelect.innerHTML = options.join('');
+    ui.subjectSelect.value = state.activeSubjectId || state.subjects[0]?.id || ALL_SUBJECTS;
+  }
+
+  function renderAppSubjectSelect() {
+    if (!ui.appSubjectSelect) return;
+    ui.appSubjectSelect.innerHTML = '<option value="">请选择主体</option>';
+    state.subjects.forEach((subject) => {
+      const option = document.createElement('option');
+      option.value = subject.id;
+      option.textContent = subject.name;
+      ui.appSubjectSelect.appendChild(option);
+    });
+    ui.appSubjectSelect.value = state.currentMetadata?.subjectId || (selectedSubject()?.id || '');
+    ui.appSubjectSelect.disabled = !state.subjects.length;
+  }
+
+  function agreementInput(key) {
+    return ui.subjectForm?.querySelector(`[data-agreement="${key}"]`);
+  }
+
+  function openSubjectModal(subject = null) {
+    ui.subjectError.textContent = '';
+    ui.subjectModalTitle.textContent = subject ? '编辑主体' : '创建主体';
+    ui.subjectId.value = subject?.id || '';
+    ui.subjectName.value = subject?.name || '';
+    AGREEMENT_FIELDS.forEach(([key]) => { agreementInput(key).value = subject?.agreements?.[key] || ''; });
+    openModal(ui.subjectModal);
+  }
+
+  async function handleSubjectSubmit(event) {
+    event.preventDefault();
+    ui.subjectError.textContent = '';
+    try {
+      const input = {
+        id: ui.subjectId.value.trim(),
+        name: ui.subjectName.value.trim(),
+        agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, agreementInput(key).value.trim()]))
+      };
+      const result = await request(() => window.desktopAPI.saveSubject(activeConnection().id, input), '正在保存主体…');
+      state.subjects = result.subjects || [...state.subjects.filter((item) => item.id !== result.subject.id), result.subject];
+      state.activeSubjectId = result.subject.id;
+      renderSubjectSelect();
+      renderAppSubjectSelect();
+      closeModal(ui.subjectModal);
+      await loadApps();
+      showToast(input.id ? '主体已更新' : '主体已创建');
+    } catch (error) { showError(ui.subjectError, error); }
+  }
+
+  function handleAgreementAction(event) {
+    const button = event.target.closest('[data-agreement-action]');
+    if (!button) return;
+    const value = agreementInput(button.dataset.agreementKey)?.value.trim();
+    if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
+    if (button.dataset.agreementAction === 'preview') window.open(value, '_blank', 'noopener,noreferrer');
+    if (button.dataset.agreementAction === 'copy') copyText(value).then(() => showToast('协议链接已复制')).catch((error) => showError(ui.subjectError, error));
+  }
+
   function renderAppList() {
     const keyword = ui.appSearch.value.trim().toLowerCase();
-    const filtered = state.apps.filter((app) => !keyword || `${app.name} ${app.fileName}`.toLowerCase().includes(keyword));
-    ui.appCount.textContent = `${state.apps.length} 个应用`;
+    const filtered = state.apps.filter((app) => {
+      const subjectMatch = !state.activeSubjectId || state.activeSubjectId === ALL_SUBJECTS
+        || (state.activeSubjectId === UNASSIGNED_SUBJECT ? !app.subjectId : app.subjectId === state.activeSubjectId);
+      const keywordMatch = !keyword || `${app.name} ${app.fileName}`.toLowerCase().includes(keyword);
+      return subjectMatch && keywordMatch;
+    });
+    ui.appCount.textContent = `${filtered.length} / ${state.apps.length} 个应用`;
     if (!filtered.length) {
       ui.appList.innerHTML = `<div class="empty-state compact"><div class="empty-icon" aria-hidden="true">${state.apps.length ? '⌕' : '⌁'}</div><p>${state.apps.length ? '没有匹配的应用' : '还没有应用配置'}</p></div>`;
       return;
@@ -437,6 +541,7 @@
     ui.appDisplayName.value = state.currentMetadata?.name ?? '';
     ui.appPackageName.value = state.currentMetadata?.packageName ?? '';
     ui.appStoreUrl.value = state.currentMetadata?.appStoreUrl ?? '';
+    renderAppSubjectSelect();
     setToggleButton(ui.appAdToggle, document.app.ad ?? 1, '开启', '关闭');
     setToggleButton(ui.appOnToggle, document.app.on ?? 1, '开启', '关闭');
     ui.appVersion.value = document.app.version ?? '';
@@ -484,7 +589,8 @@
       ...(state.currentMetadata || {}),
       name: ui.appDisplayName.value.trim(),
       packageName: ui.appPackageName.value.trim(),
-      appStoreUrl: ui.appStoreUrl.value.trim()
+      appStoreUrl: ui.appStoreUrl.value.trim(),
+      subjectId: ui.appSubjectSelect.value
     };
     state.current.app.ad = Number(ui.appAdToggle?.dataset.value) === 1 ? 1 : 0;
     state.current.app.on = Number(ui.appOnToggle?.dataset.value) === 1 ? 1 : 0;
@@ -620,6 +726,8 @@
     const connection = activeConnection();
     if (!connection) {
       state.apps = [];
+      state.subjects = [];
+      state.activeSubjectId = null;
       state.selectedPath = null;
       state.current = null;
       state.currentMetadata = null;
@@ -628,6 +736,9 @@
     }
     ui.refreshAppsBtn.disabled = true;
     try {
+      state.subjects = await request(() => window.desktopAPI.listSubjects(connection.id), '正在读取主体列表…');
+      if (![ALL_SUBJECTS, UNASSIGNED_SUBJECT].includes(state.activeSubjectId) && !state.subjects.some((subject) => subject.id === state.activeSubjectId)) state.activeSubjectId = state.subjects[0]?.id || null;
+      renderSubjectSelect();
       state.apps = await request(() => window.desktopAPI.listApps(connection.id), '正在读取应用列表…');
       if (selectFirst) {
         state.selectedPath = state.apps[0]?.path || null;
@@ -693,6 +804,15 @@
     ui.newAppStoreUrl.value = '';
     ui.newAppFileName.value = '';
     if (!activeConnection()) { openConnectionModal(); return; }
+    if (!state.subjects.length) {
+      showToast('请先创建主体', 'error');
+      openSubjectModal();
+      return;
+    }
+    if (!selectedSubject()) {
+      showToast('请先选择具体主体', 'error');
+      return;
+    }
     openModal(ui.createAppModal);
   }
 
@@ -890,7 +1010,8 @@
         name: ui.newAppName.value,
         packageName: ui.newAppPackage.value,
         appStoreUrl: ui.newAppStoreUrl.value,
-        fileName: ui.newAppFileName.value
+        fileName: ui.newAppFileName.value,
+        subjectId: selectedSubject()?.id
       }), '正在创建应用…');
       closeModal(ui.createAppModal);
       state.selectedPath = null;
@@ -1179,11 +1300,22 @@
       const saved = await request(() => window.desktopAPI.activateConnection(ui.connectionSelect.value), '正在切换连接…');
       state.connections = saved.connections;
       state.activeConnectionId = saved.activeConnectionId;
+      state.activeSubjectId = null;
       showAppsHome({ replaceRoute: true });
       renderConnectionSelect(); await loadApps();
     } catch (error) { showError(null, error); }
   });
   ui.manageConnectionsBtn.addEventListener('click', () => openConnectionModal(activeConnection()));
+  ui.subjectSelect.addEventListener('change', async () => {
+    state.activeSubjectId = ui.subjectSelect.value || null;
+    showAppsHome({ replaceRoute: true });
+    renderAppList();
+    await loadApps();
+  });
+  ui.manageSubjectsBtn.addEventListener('click', () => openSubjectModal(selectedSubject() || state.subjects[0] || null));
+  ui.newSubjectBtn.addEventListener('click', () => openSubjectModal());
+  ui.subjectForm.addEventListener('submit', handleSubjectSubmit);
+  ui.subjectForm.addEventListener('click', handleAgreementAction);
   ui.deleteConnectionBtn.addEventListener('click', deleteConnection);
   ui.newConnectionBtn.addEventListener('click', () => openConnectionModal());
   ui.refreshAppsBtn.addEventListener('click', () => loadApps());
@@ -1255,7 +1387,7 @@
   ui.connectionForm.addEventListener('submit', handleConnectionSubmit);
   ui.createAppForm.addEventListener('submit', handleCreateApp);
   ui.importConnectionsBtn.addEventListener('click', async () => {
-    try { const result = await request(() => window.desktopAPI.importConnections(), '正在导入连接配置…'); if (!result.canceled) { state.connections = result.state.connections; state.activeConnectionId = result.state.activeConnectionId; showAppsHome({ replaceRoute: true }); renderConnectionSelect(); await loadApps(); showToast('配置已导入'); } } catch (error) { showError(ui.connectionError, error); }
+    try { const result = await request(() => window.desktopAPI.importConnections(), '正在导入连接配置…'); if (!result.canceled) { state.connections = result.state.connections; state.activeConnectionId = result.state.activeConnectionId; state.activeSubjectId = null; showAppsHome({ replaceRoute: true }); renderConnectionSelect(); await loadApps(); showToast('配置已导入'); } } catch (error) { showError(ui.connectionError, error); }
   });
   ui.exportConnectionsBtn.addEventListener('click', async () => { try { const result = await request(() => window.desktopAPI.exportConnections(), '正在导出连接配置…'); if (!result.canceled) showToast('配置已导出'); } catch (error) { showError(null, error); } });
   document.addEventListener('click', (event) => { const close = event.target.closest('[data-close-modal]'); if (close) closeModal(document.getElementById(close.dataset.closeModal)); });

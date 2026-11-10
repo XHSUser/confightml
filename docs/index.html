@@ -42,6 +42,10 @@
         </div>
         <div class="sidebar-list-panel" id="appListPanel">
           <div class="repo-caption" id="repoCaption">还没有连接配置</div>
+          <div class="subject-toolbar">
+            <label class="field subject-select-field"><span>当前主体</span><select id="subjectSelect" aria-label="选择主体"><option value="">未选择主体</option></select></label>
+            <button type="button" class="text-button" id="manageSubjectsBtn">主体管理</button>
+          </div>
           <div class="app-search-wrap">
             <span class="search-icon">⌕</span>
             <input id="appSearch" type="search" placeholder="搜索应用" autocomplete="off" />
@@ -88,10 +92,11 @@
             <div class="form-grid">
             <section class="panel span-full" id="section-app" role="tabpanel" aria-labelledby="tab-app" data-config-section="app">
               <div class="panel-heading"><div><h3>应用设置</h3><p>控制应用总体状态与最新版本号</p></div><span class="panel-number">01</span></div>
-              <div class="field-grid three app-info-fields">
+              <div class="field-grid four app-info-fields">
                 <label class="field"><span>应用名称 <strong class="required">必填</strong></span><input id="appDisplayName" type="text" placeholder="例如：我的工具" data-required-field="应用名称" required /></label>
                 <label class="field"><span>包名</span><input id="appPackageName" type="text" placeholder="可选" /></label>
                 <label class="field"><span>商店链接</span><input id="appStoreUrl" type="url" placeholder="可选" /></label>
+                <label class="field"><span>所属主体 <strong class="required">必填</strong></span><select id="appSubjectSelect" data-required-field="所属主体" required><option value="">请选择主体</option></select></label>
               </div>
               <div class="section-divider"></div>
               <div class="field-grid three">
@@ -199,6 +204,27 @@
         <div class="form-error" id="createAppError"></div>
         <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="createAppModal">取消</button><button type="submit" class="button primary">创建并打开</button></div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="subjectModal" hidden>
+    <div class="modal subject-modal">
+      <div class="modal-header"><div><div class="eyebrow">SUBJECT PROFILE</div><h2 id="subjectModalTitle">创建主体</h2></div><button class="close-button" data-close-modal="subjectModal">×</button></div>
+      <p class="modal-description">主体用于归属应用，并维护该主体的四个协议入口。新建主体只需填写名称，协议链接可稍后补充。</p>
+      <form id="subjectForm">
+        <input id="subjectId" type="hidden" />
+        <label class="field"><span>主体名称 <strong class="required">必填</strong></span><input id="subjectName" type="text" placeholder="例如：上海某某科技有限公司" required /></label>
+        <div class="agreement-editor">
+          <div class="subsection-heading"><div><h4>协议入口</h4><p>填写后可直接预览或复制链接</p></div></div>
+          <label class="agreement-row"><span>用户协议</span><input data-agreement="userAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="userAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="userAgreement">复制</button></span></label>
+          <label class="agreement-row"><span>技术支持</span><input data-agreement="technicalSupport" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="technicalSupport">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="technicalSupport">复制</button></span></label>
+          <label class="agreement-row"><span>隐私政策</span><input data-agreement="privacyPolicy" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="privacyPolicy">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="privacyPolicy">复制</button></span></label>
+          <label class="agreement-row"><span>会员协议</span><input data-agreement="membershipAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="membershipAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="membershipAgreement">复制</button></span></label>
+        </div>
+        <div class="form-error" id="subjectError"></div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="subjectModal">取消</button><button type="submit" class="button primary">保存主体</button></div>
+      </form>
+      <div class="modal-foot-actions"><button type="button" class="text-button" id="newSubjectBtn">＋ 新建主体</button></div>
     </div>
   </div>
 
