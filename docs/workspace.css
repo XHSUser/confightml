@@ -400,6 +400,15 @@ body { background-color: var(--color-paper); }
 .agreement-actions { display: flex; gap: 3px; }
 .agreement-actions .text-button { padding-inline: 5px; }
 .agreement-content-editor { min-height: 320px; resize: vertical; line-height: 1.7; }
+.agreement-editor-toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.agreement-editor-toolbar button { min-width: 34px; padding: 5px 8px; border: 1px solid var(--color-control-rule); border-radius: var(--radius-control); color: var(--color-ink); background: var(--color-surface); cursor: pointer; }
+.agreement-editor-toolbar button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.agreement-content-editor { overflow: auto; min-height: 320px; padding: var(--space-sm); border: 1px solid var(--color-control-rule); border-radius: var(--radius-control); color: var(--color-ink); background: var(--color-field); outline: 0; }
+.agreement-content-editor:focus { border-color: var(--color-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 16%, transparent); }
+.agreement-content-editor:empty::before { content: attr(data-placeholder); color: var(--color-ink-2); }
+.agreement-content-editor h2 { margin: .6em 0 .3em; font-size: 1.2em; }
+.agreement-content-editor p { margin: .5em 0; }
+.agreement-content-editor ul, .agreement-content-editor ol { padding-left: 1.6em; }
 
 @media (max-width: 600px) {
   .subject-toolbar { padding-inline: 0; }

@@ -93,6 +93,7 @@
     agreementEditorTitle: $('#agreementEditorTitle'),
     agreementEditorUrl: $('#agreementEditorUrl'),
     agreementEditorContent: $('#agreementEditorContent'),
+    agreementEditorToolbar: $('#agreementEditorToolbar'),
     agreementEditorError: $('#agreementEditorError'),
     createVersionModal: $('#createVersionModal'),
     createVersionForm: $('#createVersionForm'),
@@ -319,14 +320,48 @@
     ui.agreementEditorError.textContent = '';
     ui.agreementEditorTitle.textContent = `编辑${label}`;
     ui.agreementEditorUrl.value = agreementInput(key)?.value.trim() || '';
-    ui.agreementEditorContent.value = agreementDraft[key] || '';
+    ui.agreementEditorContent.innerHTML = agreementContentHtml(agreementDraft[key] || '');
     openModal(ui.agreementEditorModal);
+  }
+
+  function sanitiseAgreementHtml(value) {
+    const template = document.createElement('template');
+    template.innerHTML = String(value || '');
+    template.content.querySelectorAll('script, style, iframe, object, embed, form').forEach((node) => node.remove());
+    template.content.querySelectorAll('*').forEach((node) => {
+      [...node.attributes].forEach((attribute) => {
+        if (/^on/i.test(attribute.name)) node.removeAttribute(attribute.name);
+        if (['href', 'src'].includes(attribute.name) && /^javascript:/i.test(attribute.value)) node.removeAttribute(attribute.name);
+      });
+    });
+    return template.innerHTML;
+  }
+
+  function agreementContentHtml(value) {
+    const content = String(value || '');
+    if (!content) return '';
+    if (/<[a-z][\s\S]*>/i.test(content)) return sanitiseAgreementHtml(content);
+    return escapeHtml(content).replace(/\r?\n/g, '<br>');
+  }
+
+  function handleAgreementEditorToolbar(event) {
+    const button = event.target.closest('[data-editor-command]');
+    if (!button) return;
+    event.preventDefault();
+    ui.agreementEditorContent.focus();
+    let value = button.dataset.editorValue || null;
+    if (button.dataset.editorCommand === 'createLink') {
+      value = window.prompt('请输入链接地址', 'https://');
+      if (!value) return;
+      if (!/^https?:\/\//i.test(value)) return showError(ui.agreementEditorError, new Error('链接需以 http:// 或 https:// 开头'));
+    }
+    document.execCommand(button.dataset.editorCommand, false, value);
   }
 
   function saveAgreementEditor(event) {
     event.preventDefault();
     if (!editingAgreementKey) return;
-    agreementDraft[editingAgreementKey] = ui.agreementEditorContent.value;
+    agreementDraft[editingAgreementKey] = sanitiseAgreementHtml(ui.agreementEditorContent.innerHTML);
     closeModal(ui.agreementEditorModal);
     showToast('协议内容已更新，请同步配置');
   }
@@ -391,7 +426,7 @@
         const label = AGREEMENT_FIELDS.find(([key]) => key === button.dataset.agreementKey)?.[1] || '协议';
         ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
         ui.previewModal.querySelector('h2').textContent = `${label} · 预览`;
-        ui.previewContent.textContent = content;
+        ui.previewContent.innerHTML = sanitiseAgreementHtml(agreementContentHtml(content));
         openModal(ui.previewModal);
       } else window.open(value, '_blank', 'noopener,noreferrer');
     }
@@ -1412,6 +1447,7 @@
   ui.subjectForm.addEventListener('submit', handleSubjectSubmit);
   ui.subjectForm.addEventListener('click', handleAgreementAction);
   ui.agreementEditorForm.addEventListener('submit', saveAgreementEditor);
+  ui.agreementEditorToolbar.addEventListener('click', handleAgreementEditorToolbar);
   ui.deleteConnectionBtn.addEventListener('click', deleteConnection);
   ui.newConnectionBtn.addEventListener('click', () => openConnectionModal());
   ui.refreshAppsBtn.addEventListener('click', () => loadApps());
