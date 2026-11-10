@@ -20,6 +20,7 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <button class="button ghost" id="manageSubjectsBtn">主体管理</button>
         <div class="connection-summary">
           <span class="status-dot"></span>
           <select id="connectionSelect" aria-label="选择连接配置"></select>
@@ -45,7 +46,6 @@
           <div class="subject-toolbar">
             <label class="field subject-select-field"><span>当前主体</span><select id="subjectSelect" aria-label="选择主体"><option value="">未选择主体</option></select></label>
             <button type="button" class="text-button" id="openAgreementsBtn">协议入口</button>
-            <button type="button" class="text-button" id="manageSubjectsBtn">主体管理</button>
           </div>
           <div class="app-search-wrap">
             <span class="search-icon">⌕</span>
@@ -217,15 +217,28 @@
         <label class="field"><span>主体名称 <strong class="required">必填</strong></span><input id="subjectName" type="text" placeholder="例如：上海某某科技有限公司" required /></label>
         <div class="agreement-editor">
           <div class="subsection-heading"><div><h4>协议入口</h4><p>填写后可直接预览或复制链接</p></div></div>
-          <label class="agreement-row"><span>用户协议</span><input data-agreement="userAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="userAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="userAgreement">复制</button></span></label>
-          <label class="agreement-row"><span>技术支持</span><input data-agreement="technicalSupport" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="technicalSupport">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="technicalSupport">复制</button></span></label>
-          <label class="agreement-row"><span>隐私政策</span><input data-agreement="privacyPolicy" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="privacyPolicy">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="privacyPolicy">复制</button></span></label>
-          <label class="agreement-row"><span>会员协议</span><input data-agreement="membershipAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="membershipAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="membershipAgreement">复制</button></span></label>
+          <label class="agreement-row"><span>用户协议</span><input data-agreement="userAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="edit" data-agreement-key="userAgreement">编辑</button><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="userAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="userAgreement">复制</button></span></label>
+          <label class="agreement-row"><span>技术支持</span><input data-agreement="technicalSupport" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="edit" data-agreement-key="technicalSupport">编辑</button><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="technicalSupport">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="technicalSupport">复制</button></span></label>
+          <label class="agreement-row"><span>隐私政策</span><input data-agreement="privacyPolicy" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="edit" data-agreement-key="privacyPolicy">编辑</button><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="privacyPolicy">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="privacyPolicy">复制</button></span></label>
+          <label class="agreement-row"><span>会员协议</span><input data-agreement="membershipAgreement" type="url" placeholder="https://" /><span class="agreement-actions"><button type="button" class="text-button" data-agreement-action="edit" data-agreement-key="membershipAgreement">编辑</button><button type="button" class="text-button" data-agreement-action="preview" data-agreement-key="membershipAgreement">预览</button><button type="button" class="text-button" data-agreement-action="copy" data-agreement-key="membershipAgreement">复制</button></span></label>
         </div>
         <div class="form-error" id="subjectError"></div>
         <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="subjectModal">取消</button><button type="submit" class="button primary">保存主体</button></div>
       </form>
       <div class="modal-foot-actions"><button type="button" class="text-button" id="generateDefaultAgreementsBtn">默认生成</button><button type="button" class="text-button" id="syncSubjectBtn">同步配置</button><button type="button" class="text-button" id="newSubjectBtn">＋ 新建主体</button></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="agreementEditorModal" hidden>
+    <div class="modal large-modal agreement-editor-modal">
+      <div class="modal-header"><div><div class="eyebrow">AGREEMENT CONTENT</div><h2 id="agreementEditorTitle">编辑协议</h2></div><button class="close-button" data-close-modal="agreementEditorModal">×</button></div>
+      <p class="modal-description">修改协议正文后点击保存，内容会跟随主体协议配置同步到 GitHub。</p>
+      <form id="agreementEditorForm">
+        <label class="field"><span>协议链接</span><input id="agreementEditorUrl" type="url" readonly /></label>
+        <label class="field"><span>协议内容</span><textarea id="agreementEditorContent" class="agreement-content-editor" rows="18" placeholder="请输入协议内容"></textarea></label>
+        <div class="form-error" id="agreementEditorError"></div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-modal="agreementEditorModal">取消</button><button type="submit" class="button primary">保存内容</button></div>
+      </form>
     </div>
   </div>
 

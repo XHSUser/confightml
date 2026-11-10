@@ -183,8 +183,11 @@
     if (!name) throw new Error('请输入主体名称');
     const agreements = {};
     AGREEMENT_FIELDS.forEach(([key, label]) => {
-      agreements[key] = String(input?.agreements?.[key] || '').trim();
-      if (agreements[key] && !/^https?:\/\//i.test(agreements[key])) throw new Error(`${label}链接需以 http:// 或 https:// 开头`);
+      const value = input?.agreements?.[key];
+      const url = typeof value === 'object' && value ? String(value.url || '').trim() : String(value || '').trim();
+      const content = typeof value === 'object' && value ? String(value.content || '') : '';
+      if (url && !/^https?:\/\//i.test(url)) throw new Error(`${label}链接需以 http:// 或 https:// 开头`);
+      agreements[key] = { url, content };
     });
     return { id: String(input?.id || randomId()), name, agreements };
   }

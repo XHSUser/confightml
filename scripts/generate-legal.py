@@ -122,18 +122,14 @@ def page(title: str, source_url: str, body: str) -> str:
 </head>
 <body>
   <main class="reading-page">
-    <nav class="topbar" aria-label="文档导航"><a href="index.html">文档目录</a></nav>
     <article class="document">
       <header class="document-header">
-        <p class="eyebrow">公开文档</p>
         <h1>{html.escape(title)}</h1>
-        <p class="source">内容来源：飞书云文档</p>
       </header>
       <section class="content">
 {body}
       </section>
     </article>
-    <footer class="footer"><a href="index.html">返回文档目录</a></footer>
   </main>
 </body>
 </html>

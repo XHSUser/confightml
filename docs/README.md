@@ -17,7 +17,7 @@
 
 应用目录 `peizhi.json` 支持 `subjects` 数组。创建应用前必须先创建主体；应用登记项通过 `subjectId` 关联主体。已有未分配主体的应用可在“未分配主体”筛选中打开，然后在应用设置里改“所属主体”并保存。
 
-主体的 `agreements` 对象保存四个只读网页入口：`userAgreement`、`technicalSupport`、`privacyPolicy` 和 `membershipAgreement`。链接必须使用 `http://` 或 `https://`，页面中可直接预览或复制。
+主体的 `agreements` 对象保存四个协议入口：`userAgreement`、`technicalSupport`、`privacyPolicy` 和 `membershipAgreement`。每项包含 `url` 和可编辑的 `content`，链接必须使用 `http://` 或 `https://`，页面中可直接编辑、预览或复制。
 
 网页端不包含 IPA 打包或安装功能。
 

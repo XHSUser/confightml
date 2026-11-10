@@ -88,6 +88,12 @@
     generateDefaultAgreementsBtn: $('#generateDefaultAgreementsBtn'),
     syncSubjectBtn: $('#syncSubjectBtn'),
     newSubjectBtn: $('#newSubjectBtn'),
+    agreementEditorModal: $('#agreementEditorModal'),
+    agreementEditorForm: $('#agreementEditorForm'),
+    agreementEditorTitle: $('#agreementEditorTitle'),
+    agreementEditorUrl: $('#agreementEditorUrl'),
+    agreementEditorContent: $('#agreementEditorContent'),
+    agreementEditorError: $('#agreementEditorError'),
     createVersionModal: $('#createVersionModal'),
     createVersionForm: $('#createVersionForm'),
     newVersionNumber: $('#newVersionNumber'),
@@ -161,6 +167,8 @@
     privacyPolicy: 'privacy-policy.html',
     membershipAgreement: 'membership-agreement.html'
   };
+  let agreementDraft = {};
+  let editingAgreementKey = null;
 
   const emptyDocument = () => ({
     app: { ad: 1, on: 1, version: '1.0.0' },
@@ -277,12 +285,23 @@
     return ui.subjectForm?.querySelector(`[data-agreement="${key}"]`);
   }
 
+  function agreementValue(subject, key) {
+    const value = subject?.agreements?.[key];
+    if (value && typeof value === 'object') return { url: String(value.url || ''), content: String(value.content || '') };
+    return { url: String(value || ''), content: '' };
+  }
+
   function openSubjectModal(subject = null) {
     ui.subjectError.textContent = '';
     ui.subjectModalTitle.textContent = subject ? '编辑主体' : '创建主体';
     ui.subjectId.value = subject?.id || '';
     ui.subjectName.value = subject?.name || '';
-    AGREEMENT_FIELDS.forEach(([key]) => { agreementInput(key).value = subject?.agreements?.[key] || ''; });
+    agreementDraft = {};
+    AGREEMENT_FIELDS.forEach(([key]) => {
+      const value = agreementValue(subject, key);
+      agreementInput(key).value = value.url;
+      agreementDraft[key] = value.content;
+    });
     openModal(ui.subjectModal);
   }
 
@@ -290,8 +309,26 @@
     return {
       id: ui.subjectId.value.trim(),
       name: ui.subjectName.value.trim(),
-      agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, agreementInput(key).value.trim()]))
+      agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, { url: agreementInput(key).value.trim(), content: agreementDraft[key] || '' }]))
     };
+  }
+
+  function openAgreementEditor(key) {
+    const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
+    editingAgreementKey = key;
+    ui.agreementEditorError.textContent = '';
+    ui.agreementEditorTitle.textContent = `编辑${label}`;
+    ui.agreementEditorUrl.value = agreementInput(key)?.value.trim() || '';
+    ui.agreementEditorContent.value = agreementDraft[key] || '';
+    openModal(ui.agreementEditorModal);
+  }
+
+  function saveAgreementEditor(event) {
+    event.preventDefault();
+    if (!editingAgreementKey) return;
+    agreementDraft[editingAgreementKey] = ui.agreementEditorContent.value;
+    closeModal(ui.agreementEditorModal);
+    showToast('协议内容已更新，请同步配置');
   }
 
   function defaultAgreementUrl(key) {
@@ -346,8 +383,18 @@
     const button = event.target.closest('[data-agreement-action]');
     if (!button) return;
     const value = agreementInput(button.dataset.agreementKey)?.value.trim();
+    if (button.dataset.agreementAction === 'edit') return openAgreementEditor(button.dataset.agreementKey);
     if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
-    if (button.dataset.agreementAction === 'preview') window.open(value, '_blank', 'noopener,noreferrer');
+    if (button.dataset.agreementAction === 'preview') {
+      const content = agreementDraft[button.dataset.agreementKey] || '';
+      if (content) {
+        const label = AGREEMENT_FIELDS.find(([key]) => key === button.dataset.agreementKey)?.[1] || '协议';
+        ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
+        ui.previewModal.querySelector('h2').textContent = `${label} · 预览`;
+        ui.previewContent.textContent = content;
+        openModal(ui.previewModal);
+      } else window.open(value, '_blank', 'noopener,noreferrer');
+    }
     if (button.dataset.agreementAction === 'copy') copyText(value).then(() => showToast('协议链接已复制')).catch((error) => showError(ui.subjectError, error));
   }
 
@@ -1364,6 +1411,7 @@
   ui.newSubjectBtn.addEventListener('click', () => openSubjectModal());
   ui.subjectForm.addEventListener('submit', handleSubjectSubmit);
   ui.subjectForm.addEventListener('click', handleAgreementAction);
+  ui.agreementEditorForm.addEventListener('submit', saveAgreementEditor);
   ui.deleteConnectionBtn.addEventListener('click', deleteConnection);
   ui.newConnectionBtn.addEventListener('click', () => openConnectionModal());
   ui.refreshAppsBtn.addEventListener('click', () => loadApps());
