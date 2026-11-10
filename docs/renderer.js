@@ -17,6 +17,7 @@
     toggleAppListBtn: $('#toggleAppListBtn'),
     appCount: $('#appCount'),
     subjectSelect: $('#subjectSelect'),
+    openAgreementsBtn: $('#openAgreementsBtn'),
     manageSubjectsBtn: $('#manageSubjectsBtn'),
     refreshAppsBtn: $('#refreshAppsBtn'),
     createAppBtn: $('#createAppBtn'),
@@ -84,6 +85,8 @@
     subjectId: $('#subjectId'),
     subjectName: $('#subjectName'),
     subjectError: $('#subjectError'),
+    generateDefaultAgreementsBtn: $('#generateDefaultAgreementsBtn'),
+    syncSubjectBtn: $('#syncSubjectBtn'),
     newSubjectBtn: $('#newSubjectBtn'),
     createVersionModal: $('#createVersionModal'),
     createVersionForm: $('#createVersionForm'),
@@ -152,6 +155,12 @@
     ['privacyPolicy', '隐私政策'],
     ['membershipAgreement', '会员协议']
   ];
+  const DEFAULT_AGREEMENT_PATHS = {
+    userAgreement: 'user-agreement.html',
+    technicalSupport: 'technical-support.html',
+    privacyPolicy: 'privacy-policy.html',
+    membershipAgreement: 'membership-agreement.html'
+  };
 
   const emptyDocument = () => ({
     app: { ad: 1, on: 1, version: '1.0.0' },
@@ -277,15 +286,51 @@
     openModal(ui.subjectModal);
   }
 
+  function subjectFormValue() {
+    return {
+      id: ui.subjectId.value.trim(),
+      name: ui.subjectName.value.trim(),
+      agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, agreementInput(key).value.trim()]))
+    };
+  }
+
+  function defaultAgreementUrl(key) {
+    const fileName = DEFAULT_AGREEMENT_PATHS[key];
+    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
+    return `https://xhsuser.github.io/confightml/legal/${fileName}`;
+  }
+
+  function generateDefaultAgreements() {
+    AGREEMENT_FIELDS.forEach(([key]) => { agreementInput(key).value = defaultAgreementUrl(key); });
+    showToast('已生成四个默认协议链接');
+  }
+
+  async function syncSubjectConfig() {
+    ui.subjectError.textContent = '';
+    try {
+      const input = subjectFormValue();
+      const result = await request(() => window.desktopAPI.saveSubject(activeConnection().id, input), '正在同步主体协议配置…');
+      state.subjects = result.subjects || state.subjects;
+      state.activeSubjectId = result.subject.id;
+      renderSubjectSelect();
+      renderAppSubjectSelect();
+      showToast('主体协议配置已同步');
+    } catch (error) { showError(ui.subjectError, error); }
+  }
+
+  function openAgreements() {
+    if (!activeConnection()) return openConnectionModal();
+    if (!state.subjects.length) return openSubjectModal();
+    const subject = selectedSubject();
+    if (!subject) return showToast('请先选择具体主体', 'error');
+    openSubjectModal(subject);
+  }
+
   async function handleSubjectSubmit(event) {
     event.preventDefault();
     ui.subjectError.textContent = '';
     try {
-      const input = {
-        id: ui.subjectId.value.trim(),
-        name: ui.subjectName.value.trim(),
-        agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, agreementInput(key).value.trim()]))
-      };
+      const input = subjectFormValue();
       const result = await request(() => window.desktopAPI.saveSubject(activeConnection().id, input), '正在保存主体…');
       state.subjects = result.subjects || [...state.subjects.filter((item) => item.id !== result.subject.id), result.subject];
       state.activeSubjectId = result.subject.id;
@@ -1306,6 +1351,7 @@
     } catch (error) { showError(null, error); }
   });
   ui.manageConnectionsBtn.addEventListener('click', () => openConnectionModal(activeConnection()));
+  ui.openAgreementsBtn.addEventListener('click', openAgreements);
   ui.subjectSelect.addEventListener('change', async () => {
     state.activeSubjectId = ui.subjectSelect.value || null;
     showAppsHome({ replaceRoute: true });
@@ -1313,6 +1359,8 @@
     await loadApps();
   });
   ui.manageSubjectsBtn.addEventListener('click', () => openSubjectModal(selectedSubject() || state.subjects[0] || null));
+  ui.generateDefaultAgreementsBtn.addEventListener('click', generateDefaultAgreements);
+  ui.syncSubjectBtn.addEventListener('click', syncSubjectConfig);
   ui.newSubjectBtn.addEventListener('click', () => openSubjectModal());
   ui.subjectForm.addEventListener('submit', handleSubjectSubmit);
   ui.subjectForm.addEventListener('click', handleAgreementAction);
