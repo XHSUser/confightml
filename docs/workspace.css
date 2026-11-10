@@ -391,6 +391,7 @@ body { background-color: var(--color-paper); }
 .subject-select-field span { font-size: var(--text-xs); }
 .subject-select-field select { width: 100%; min-width: 0; }
 .subject-toolbar .text-button { flex: 0 0 auto; padding-bottom: 7px; }
+.brand-subject-button { margin-left: var(--space-sm); }
 
 .subject-modal { width: min(720px, 100%); }
 .agreement-editor { display: grid; gap: var(--space-xs); margin-top: var(--space-md); }
