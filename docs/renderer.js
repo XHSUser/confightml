@@ -314,14 +314,32 @@
     };
   }
 
-  function openAgreementEditor(key) {
+  async function openAgreementEditor(key) {
     const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
     editingAgreementKey = key;
     ui.agreementEditorError.textContent = '';
     ui.agreementEditorTitle.textContent = `编辑${label}`;
-    ui.agreementEditorUrl.value = agreementInput(key)?.value.trim() || '';
-    ui.agreementEditorContent.innerHTML = agreementContentHtml(agreementDraft[key] || '');
+    const url = agreementInput(key)?.value.trim() || '';
+    ui.agreementEditorUrl.value = url;
+    const existing = agreementDraft[key] || '';
     openModal(ui.agreementEditorModal);
+    if (existing || !url) {
+      ui.agreementEditorContent.innerHTML = agreementContentHtml(existing);
+      return;
+    }
+    ui.agreementEditorContent.innerHTML = '<p>正在读取协议内容…</p>';
+    try {
+      const response = await fetch(url, { headers: { Accept: 'text/html' } });
+      if (!response.ok) throw new Error(`协议页面读取失败 (${response.status})`);
+      const html = await response.text();
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      const content = parsed.querySelector('.content') || parsed.querySelector('article') || parsed.body;
+      agreementDraft[key] = content?.innerHTML || '';
+      ui.agreementEditorContent.innerHTML = agreementContentHtml(agreementDraft[key]);
+    } catch (error) {
+      ui.agreementEditorContent.innerHTML = '';
+      showError(ui.agreementEditorError, error);
+    }
   }
 
   function sanitiseAgreementHtml(value) {
@@ -418,7 +436,7 @@
     const button = event.target.closest('[data-agreement-action]');
     if (!button) return;
     const value = agreementInput(button.dataset.agreementKey)?.value.trim();
-    if (button.dataset.agreementAction === 'edit') return openAgreementEditor(button.dataset.agreementKey);
+    if (button.dataset.agreementAction === 'edit') { openAgreementEditor(button.dataset.agreementKey); return; }
     if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
     if (button.dataset.agreementAction === 'preview') {
       const content = agreementDraft[button.dataset.agreementKey] || '';
