@@ -341,7 +341,9 @@
         const html = await response.text();
         const parsed = new DOMParser().parseFromString(html, 'text/html');
         const content = parsed.querySelector('.content') || parsed.querySelector('article') || parsed.body;
-        if (content?.innerHTML) return content.innerHTML;
+        const contentHtml = content?.innerHTML?.trim() || '';
+        const contentText = content?.textContent?.trim() || '';
+        if (contentHtml && !['正在加载协议内容…', '协议内容读取失败'].includes(contentText)) return contentHtml;
       } catch {
         // Try the next source, including the shared default page.
       }
