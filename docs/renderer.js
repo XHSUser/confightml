@@ -292,6 +292,11 @@
     return { url: String(value || ''), content: '' };
   }
 
+  function createDraftSubjectId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `subject-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
   function openSubjectModal(subject = null) {
     ui.subjectError.textContent = '';
     ui.subjectModalTitle.textContent = subject ? '编辑主体' : '创建主体';
@@ -386,11 +391,15 @@
 
   function defaultAgreementUrl(key) {
     const fileName = DEFAULT_AGREEMENT_PATHS[key];
-    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
-    return `https://xhsuser.github.io/confightml/legal/${fileName}`;
+    const subjectId = ui.subjectId.value.trim();
+    if (!subjectId) throw new Error('请先生成或保存主体后再生成默认协议链接');
+    const suffix = `?subject=${encodeURIComponent(subjectId)}`;
+    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${fileName}${suffix}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
+    return `https://xhsuser.github.io/confightml/legal/${fileName}${suffix}`;
   }
 
   function generateDefaultAgreements() {
+    if (!ui.subjectId.value.trim()) ui.subjectId.value = createDraftSubjectId();
     AGREEMENT_FIELDS.forEach(([key]) => { agreementInput(key).value = defaultAgreementUrl(key); });
     showToast('已生成四个默认协议链接');
   }
