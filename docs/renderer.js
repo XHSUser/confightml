@@ -325,7 +325,7 @@
       const fallback = defaultAgreementSourceUrl(key);
       const fallbackUrl = new URL(fallback);
       const fileName = DEFAULT_AGREEMENT_PATHS[key];
-      if (candidate.origin === fallbackUrl.origin && candidate.pathname.includes('/legal/') && candidate.pathname.endsWith(`/${fileName}`) && candidate.href !== fallback) sources.push(fallback);
+      if (candidate.origin === fallbackUrl.origin && candidate.pathname.endsWith(`/${fileName}`) && candidate.pathname !== fallbackUrl.pathname) sources.push(fallback);
     } catch {
       // Invalid URLs are reported by the fetch step below.
     }
@@ -449,22 +449,41 @@
     showToast('协议内容已更新，请同步配置');
   }
 
-  function defaultAgreementUrl(key) {
+  function defaultAgreementUrl(key, pathName = '') {
     const fileName = DEFAULT_AGREEMENT_PATHS[key];
-    const subjectId = ui.subjectId.value.trim();
-    if (!subjectId) throw new Error('请先生成或保存主体后再生成默认协议链接');
-    const subjectPath = encodeURIComponent(subjectId);
-    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${subjectPath}/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
-    return `https://xhsuser.github.io/confightml/legal/${subjectPath}/${fileName}`;
+    const generatedPathName = pathName || createDraftSubjectId().replace(/-/g, '').slice(0, 12);
+    const pathSegment = encodeURIComponent(generatedPathName);
+    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`${pathSegment}/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
+    return `https://xhsuser.github.io/confightml/${pathSegment}/${fileName}`;
+  }
+
+  function uniqueAgreementPathName(value) {
+    const base = String(value || '').trim().replace(/[\\/?#%]+/g, '-').replace(/\s+/g, '-').replace(/^\.+|\.+$/g, '') || createDraftSubjectId().replace(/-/g, '').slice(0, 12);
+    const currentId = ui.subjectId.value.trim();
+    const used = state.subjects.some((subject) => {
+      if (subject?.id === currentId) return false;
+      return AGREEMENT_FIELDS.some(([key]) => {
+        const agreement = subject?.agreements?.[key];
+        const url = typeof agreement === 'object' ? agreement?.url : agreement;
+        try {
+          const parts = new URL(String(url || '')).pathname.split('/').filter(Boolean);
+          return parts.length > 1 && decodeURIComponent(parts.at(-2)) === base;
+        } catch { return false; }
+      });
+    });
+    return used ? `${base}-${createDraftSubjectId().replace(/-/g, '').slice(0, 8)}` : base;
   }
 
   function generateDefaultAgreements() {
-    if (!ui.subjectId.value.trim()) ui.subjectId.value = createDraftSubjectId();
-    AGREEMENT_FIELDS.forEach(([key]) => {
+    const missing = AGREEMENT_FIELDS.filter(([key]) => !agreementInput(key).value.trim());
+    if (!missing.length) return showToast('四个协议链接均已存在');
+    const enteredName = window.prompt('请输入协议链接名称，留空将随机生成', '');
+    const pathName = uniqueAgreementPathName(enteredName);
+    missing.forEach(([key]) => {
       const input = agreementInput(key);
-      if (!input.value.trim()) input.value = defaultAgreementUrl(key);
+      input.value = defaultAgreementUrl(key, pathName);
     });
-    showToast('已补全空缺的默认协议链接');
+    showToast(`已生成协议链接：${pathName}`);
   }
 
   async function syncSubjectConfig() {
@@ -508,6 +527,12 @@
     const button = event.target.closest('[data-agreement-action]');
     if (!button) return;
     if (button.dataset.agreementAction === 'edit-url') { openAgreementUrlEditor(button.dataset.agreementKey); return; }
+    if (button.dataset.agreementAction === 'clear') {
+      agreementInput(button.dataset.agreementKey).value = '';
+      agreementDraft[button.dataset.agreementKey] = '';
+      showToast('协议链接和内容已清空');
+      return;
+    }
     const value = agreementInput(button.dataset.agreementKey)?.value.trim();
     if (button.dataset.agreementAction === 'edit') { openAgreementEditor(button.dataset.agreementKey); return; }
     if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
