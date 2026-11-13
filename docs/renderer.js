@@ -336,7 +336,14 @@
     let lastStatus = '';
     for (const source of agreementFetchSources(key, url)) {
       try {
-        const response = await fetch(source, { headers: { Accept: 'text/html' } });
+        // Subject pages are the source of truth. Bypass browser/CDN copies so
+        // editing and preview always reflect the latest committed HTML.
+        const requestUrl = new URL(source);
+        requestUrl.searchParams.set('_config_ts', String(Date.now()));
+        const response = await fetch(requestUrl.href, {
+          cache: 'no-store',
+          headers: { Accept: 'text/html', 'Cache-Control': 'no-cache' }
+        });
         if (!response.ok) { lastStatus = ` (${response.status})`; continue; }
         const html = await response.text();
         const parsed = new DOMParser().parseFromString(html, 'text/html');
