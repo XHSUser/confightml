@@ -494,7 +494,7 @@
 
   function notifySubjectSaved(result, successMessage) {
     if (result?.agreementPageError) {
-      const message = '主体配置已保存，但 confightml 协议页面未更新。请使用 XHSUser/confightml 连接，并为 Token 开通 Contents 写权限。';
+      const message = `主体配置已保存，但协议页面同步失败：${result.agreementPageError}`;
       ui.subjectError.textContent = message;
       showToast(message, 'error');
       return;
