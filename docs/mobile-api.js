@@ -259,10 +259,8 @@
     if (index >= 0) document.subjects[index] = { ...document.subjects[index], ...subject };
     else document.subjects.push(subject);
     const result = await writeDirectory(connection, document, sha, index >= 0 ? '更新主体协议入口' : '创建主体');
-    let agreementPageError = '';
-    try { await syncSubjectAgreementPages(connection, subject); } catch (error) { agreementPageError = error?.message || String(error); }
     if (connectionId) cacheApps(connectionId, await listApps(connection));
-    return { ...result, subject, subjects: document.subjects, agreementPageError };
+    return { ...result, subject, subjects: document.subjects };
   }
 
   async function saveAgreementHtml(connection, key, url, content) {
