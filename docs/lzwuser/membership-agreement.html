@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>会员协议</title><link rel="stylesheet" href="../legal/legal.css"></head>
+<body><main class="reading-page"><article class="document"><header class="document-header"><h1>会员协议</h1></header><section class="content" id="content">正在加载协议内容…</section></article></main>
+<script>fetch('../legal/membership-agreement.html').then((response) => { if (!response.ok) throw new Error(); return response.text(); }).then((html) => { const documentHtml = new DOMParser().parseFromString(html, 'text/html'); document.title = documentHtml.title; document.querySelector('#content').innerHTML = documentHtml.querySelector('.content')?.innerHTML || ''; }).catch(() => { document.querySelector('#content').textContent = '协议内容读取失败'; });</script>
+</body></html>
