@@ -361,7 +361,9 @@
     agreementInput(editingAgreementUrlKey).value = value;
     agreementDraft[editingAgreementUrlKey] = '';
     closeModal(ui.agreementUrlModal);
-    showToast('协议链接已更新，请保存主体');
+    if (activeConnection() && ui.subjectId.value.trim()) {
+      syncSubjectConfig().catch((error) => showError(ui.subjectError, error));
+    } else showToast('协议链接已更新，请保存主体');
   }
 
   function openSubjectModal(subject = null) {
@@ -448,7 +450,9 @@
     if (!editingAgreementKey) return;
     agreementDraft[editingAgreementKey] = sanitiseAgreementHtml(ui.agreementEditorContent.innerHTML);
     closeModal(ui.agreementEditorModal);
-    showToast('协议内容已更新，请同步配置');
+    if (activeConnection() && ui.subjectId.value.trim()) {
+      syncSubjectConfig().catch((error) => showError(ui.subjectError, error));
+    } else showToast('协议内容已更新，请保存主体');
   }
 
   function defaultAgreementUrl(key, pathName = '') {

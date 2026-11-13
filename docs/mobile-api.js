@@ -166,6 +166,57 @@
     }
   }
 
+  function agreementPagePath(connection, url, key) {
+    try {
+      const parsed = new URL(url);
+      const [owner, repository] = normalizeRepo(connection.repo).split('/');
+      if (parsed.hostname.toLowerCase() !== `${owner.toLowerCase()}.github.io`) return null;
+      const prefix = `/${repository}/`;
+      if (!parsed.pathname.startsWith(prefix)) return null;
+      const fileName = {
+        userAgreement: 'user-agreement.html',
+        technicalSupport: 'technical-support.html',
+        privacyPolicy: 'privacy-policy.html',
+        membershipAgreement: 'membership-agreement.html'
+      }[key] || '';
+      const filePath = decodeURIComponent(parsed.pathname.slice(prefix.length)).replace(/^\/+|\/+$/g, '');
+      if (!fileName || !filePath.endsWith(`/${fileName}`) || filePath.startsWith('legal/') || filePath.includes('..')) return null;
+      return filePath;
+    } catch { return null; }
+  }
+
+  function agreementPageHtml(template, content, filePath) {
+    const parsed = new DOMParser().parseFromString(template, 'text/html');
+    const contentNode = parsed.querySelector('.content');
+    if (contentNode && content) contentNode.innerHTML = content;
+    const stylesheet = parsed.querySelector('link[href="legal.css"]');
+    if (stylesheet) stylesheet.setAttribute('href', `${'../'.repeat(Math.max(1, filePath.split('/').length - 1))}legal/legal.css`);
+    return `<!doctype html>\n${parsed.documentElement.outerHTML}`;
+  }
+
+  async function syncSubjectAgreementPages(connection, subject) {
+    const templates = {};
+    for (const [key, label] of AGREEMENT_FIELDS) {
+      const agreement = subject.agreements?.[key];
+      const url = typeof agreement === 'object' ? String(agreement.url || '').trim() : String(agreement || '').trim();
+      const filePath = agreementPagePath(connection, url, key);
+      if (!filePath) continue;
+      const templatePath = `legal/${({ userAgreement: 'user-agreement.html', technicalSupport: 'technical-support.html', privacyPolicy: 'privacy-policy.html', membershipAgreement: 'membership-agreement.html' })[key]}`;
+      templates[key] ||= await readRemoteFile(connection, templatePath);
+      if (!templates[key]?.content) continue;
+      const template = fromBase64(templates[key].content);
+      const content = typeof agreement === 'object' ? String(agreement.content || '') : '';
+      const page = agreementPageHtml(template, content, filePath);
+      const current = await readRemoteFile(connection, filePath);
+      const body = {
+        message: `${content ? '更新' : '生成'}${label}页面`,
+        content: toBase64(page)
+      };
+      if (current?.sha) body.sha = current.sha;
+      await githubRequest(connection, 'PUT', `/repos/${normalizeRepo(connection.repo)}/contents/${encodePath(filePath)}`, body);
+    }
+  }
+
   async function readDirectory(connection) {
     const payload = await readRemoteFile(connection, DIRECTORY_FILE);
     if (!payload) return { document: { subjects: [], apps: [] }, sha: null };
@@ -199,6 +250,7 @@
     if (index >= 0) document.subjects[index] = { ...document.subjects[index], ...subject };
     else document.subjects.push(subject);
     const result = await writeDirectory(connection, document, sha, index >= 0 ? '更新主体协议入口' : '创建主体');
+    await syncSubjectAgreementPages(connection, subject);
     if (connectionId) cacheApps(connectionId, await listApps(connection));
     return { ...result, subject, subjects: document.subjects };
   }
