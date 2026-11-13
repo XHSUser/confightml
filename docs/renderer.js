@@ -88,6 +88,11 @@
     generateDefaultAgreementsBtn: $('#generateDefaultAgreementsBtn'),
     syncSubjectBtn: $('#syncSubjectBtn'),
     newSubjectBtn: $('#newSubjectBtn'),
+    agreementUrlModal: $('#agreementUrlModal'),
+    agreementUrlForm: $('#agreementUrlForm'),
+    agreementUrlTitle: $('#agreementUrlTitle'),
+    agreementUrlInput: $('#agreementUrlInput'),
+    agreementUrlError: $('#agreementUrlError'),
     agreementEditorModal: $('#agreementEditorModal'),
     agreementEditorForm: $('#agreementEditorForm'),
     agreementEditorTitle: $('#agreementEditorTitle'),
@@ -170,6 +175,7 @@
   };
   let agreementDraft = {};
   let editingAgreementKey = null;
+  let editingAgreementUrlKey = null;
 
   const emptyDocument = () => ({
     app: { ad: 1, on: 1, version: '1.0.0' },
@@ -297,6 +303,27 @@
     return `subject-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
+  function openAgreementUrlEditor(key) {
+    const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
+    editingAgreementUrlKey = key;
+    ui.agreementUrlTitle.textContent = `修改${label}链接`;
+    ui.agreementUrlError.textContent = '';
+    ui.agreementUrlInput.value = agreementInput(key)?.value.trim() || '';
+    openModal(ui.agreementUrlModal);
+  }
+
+  function saveAgreementUrlEditor(event) {
+    event.preventDefault();
+    if (!editingAgreementUrlKey) return;
+    const value = ui.agreementUrlInput.value.trim();
+    if (!/^https?:\/\//i.test(value)) {
+      return showError(ui.agreementUrlError, new Error('链接需以 http:// 或 https:// 开头'));
+    }
+    agreementInput(editingAgreementUrlKey).value = value;
+    closeModal(ui.agreementUrlModal);
+    showToast('协议链接已更新，请保存主体');
+  }
+
   function openSubjectModal(subject = null) {
     ui.subjectError.textContent = '';
     ui.subjectModalTitle.textContent = subject ? '编辑主体' : '创建主体';
@@ -393,9 +420,9 @@
     const fileName = DEFAULT_AGREEMENT_PATHS[key];
     const subjectId = ui.subjectId.value.trim();
     if (!subjectId) throw new Error('请先生成或保存主体后再生成默认协议链接');
-    const suffix = `?subject=${encodeURIComponent(subjectId)}`;
-    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${fileName}${suffix}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
-    return `https://xhsuser.github.io/confightml/legal/${fileName}${suffix}`;
+    const subjectPath = encodeURIComponent(subjectId);
+    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${subjectPath}/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
+    return `https://xhsuser.github.io/confightml/legal/${subjectPath}/${fileName}`;
   }
 
   function generateDefaultAgreements() {
@@ -447,6 +474,7 @@
   function handleAgreementAction(event) {
     const button = event.target.closest('[data-agreement-action]');
     if (!button) return;
+    if (button.dataset.agreementAction === 'edit-url') { openAgreementUrlEditor(button.dataset.agreementKey); return; }
     const value = agreementInput(button.dataset.agreementKey)?.value.trim();
     if (button.dataset.agreementAction === 'edit') { openAgreementEditor(button.dataset.agreementKey); return; }
     if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
@@ -1476,6 +1504,7 @@
   ui.newSubjectBtn.addEventListener('click', () => openSubjectModal());
   ui.subjectForm.addEventListener('submit', handleSubjectSubmit);
   ui.subjectForm.addEventListener('click', handleAgreementAction);
+  ui.agreementUrlForm.addEventListener('submit', saveAgreementUrlEditor);
   ui.agreementEditorForm.addEventListener('submit', saveAgreementEditor);
   ui.agreementEditorToolbar.addEventListener('click', handleAgreementEditorToolbar);
   ui.deleteConnectionBtn.addEventListener('click', deleteConnection);
