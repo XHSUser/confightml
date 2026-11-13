@@ -318,6 +318,37 @@
     return `https://xhsuser.github.io/confightml/legal/${fileName}`;
   }
 
+  function agreementFetchSources(key, url) {
+    const sources = [url];
+    try {
+      const candidate = new URL(url);
+      const fallback = defaultAgreementSourceUrl(key);
+      const fallbackUrl = new URL(fallback);
+      const fileName = DEFAULT_AGREEMENT_PATHS[key];
+      if (candidate.origin === fallbackUrl.origin && candidate.pathname.includes('/legal/') && candidate.pathname.endsWith(`/${fileName}`) && candidate.href !== fallback) sources.push(fallback);
+    } catch {
+      // Invalid URLs are reported by the fetch step below.
+    }
+    return sources;
+  }
+
+  async function fetchAgreementContent(key, url) {
+    let lastStatus = '';
+    for (const source of agreementFetchSources(key, url)) {
+      try {
+        const response = await fetch(source, { headers: { Accept: 'text/html' } });
+        if (!response.ok) { lastStatus = ` (${response.status})`; continue; }
+        const html = await response.text();
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        const content = parsed.querySelector('.content') || parsed.querySelector('article') || parsed.body;
+        if (content?.innerHTML) return content.innerHTML;
+      } catch {
+        // Try the next source, including the shared default page.
+      }
+    }
+    throw new Error(`协议页面读取失败${lastStatus}`);
+  }
+
   function saveAgreementUrlEditor(event) {
     event.preventDefault();
     if (!editingAgreementUrlKey) return;
@@ -326,6 +357,7 @@
       return showError(ui.agreementUrlError, new Error('链接需以 http:// 或 https:// 开头'));
     }
     agreementInput(editingAgreementUrlKey).value = value;
+    agreementDraft[editingAgreementUrlKey] = '';
     closeModal(ui.agreementUrlModal);
     showToast('协议链接已更新，请保存主体');
   }
@@ -367,19 +399,7 @@
     }
     ui.agreementEditorContent.innerHTML = '<p>正在读取协议内容…</p>';
     try {
-      const sources = [url];
-      const generatedUrl = ui.subjectId.value.trim() ? defaultAgreementUrl(key) : '';
-      if (url === generatedUrl) sources.push(defaultAgreementSourceUrl(key));
-      let response = null;
-      for (const source of sources) {
-        const candidate = await fetch(source, { headers: { Accept: 'text/html' } });
-        if (candidate.ok) { response = candidate; break; }
-      }
-      if (!response) throw new Error('协议页面读取失败');
-      const html = await response.text();
-      const parsed = new DOMParser().parseFromString(html, 'text/html');
-      const content = parsed.querySelector('.content') || parsed.querySelector('article') || parsed.body;
-      agreementDraft[key] = content?.innerHTML || '';
+      agreementDraft[key] = await fetchAgreementContent(key, url);
       ui.agreementEditorContent.innerHTML = agreementContentHtml(agreementDraft[key]);
     } catch (error) {
       ui.agreementEditorContent.innerHTML = '';
@@ -492,16 +512,21 @@
     if (button.dataset.agreementAction === 'edit') { openAgreementEditor(button.dataset.agreementKey); return; }
     if (!value) return showError(ui.subjectError, new Error('请先填写协议链接'));
     if (button.dataset.agreementAction === 'preview') {
-      const content = agreementDraft[button.dataset.agreementKey] || '';
-      if (content) {
-        const label = AGREEMENT_FIELDS.find(([key]) => key === button.dataset.agreementKey)?.[1] || '协议';
-        ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
-        ui.previewModal.querySelector('h2').textContent = `${label} · 预览`;
-        ui.previewContent.innerHTML = sanitiseAgreementHtml(agreementContentHtml(content));
-        openModal(ui.previewModal);
-      } else window.open(value, '_blank', 'noopener,noreferrer');
+      previewAgreement(button.dataset.agreementKey, value);
     }
     if (button.dataset.agreementAction === 'copy') copyText(value).then(() => showToast('协议链接已复制')).catch((error) => showError(ui.subjectError, error));
+  }
+
+  async function previewAgreement(key, url) {
+    try {
+      const content = agreementDraft[key] || await fetchAgreementContent(key, url);
+      agreementDraft[key] ||= content;
+      const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
+      ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
+      ui.previewModal.querySelector('h2').textContent = `${label} · 预览`;
+      ui.previewContent.innerHTML = sanitiseAgreementHtml(agreementContentHtml(content));
+      openModal(ui.previewModal);
+    } catch (error) { showError(ui.subjectError, error); }
   }
 
   function renderAppList() {
