@@ -400,8 +400,11 @@
 
   function generateDefaultAgreements() {
     if (!ui.subjectId.value.trim()) ui.subjectId.value = createDraftSubjectId();
-    AGREEMENT_FIELDS.forEach(([key]) => { agreementInput(key).value = defaultAgreementUrl(key); });
-    showToast('已生成四个默认协议链接');
+    AGREEMENT_FIELDS.forEach(([key]) => {
+      const input = agreementInput(key);
+      if (!input.value.trim()) input.value = defaultAgreementUrl(key);
+    });
+    showToast('已补全空缺的默认协议链接');
   }
 
   async function syncSubjectConfig() {
