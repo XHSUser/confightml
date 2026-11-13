@@ -187,7 +187,7 @@
   function agreementPageHtml(template, content, filePath) {
     const parsed = new DOMParser().parseFromString(template, 'text/html');
     const contentNode = parsed.querySelector('.content');
-    if (contentNode && content) contentNode.innerHTML = content;
+    if (contentNode && typeof content === 'string') contentNode.innerHTML = content;
     const stylesheet = parsed.querySelector('link[href="legal.css"]');
     if (stylesheet) stylesheet.setAttribute('href', `${'../'.repeat(Math.max(1, filePath.split('/').length - 1))}legal/legal.css`);
     return `<!doctype html>\n${parsed.documentElement.outerHTML}`;
@@ -202,27 +202,27 @@
   }
 
   async function syncSubjectAgreementPages(connection, subject) {
-    const templates = {};
     for (const [key, label] of AGREEMENT_FIELDS) {
       const agreement = subject.agreements?.[key];
       const url = typeof agreement === 'object' ? String(agreement.url || '').trim() : String(agreement || '').trim();
       const target = agreementPageTarget(url, key);
       if (!target) continue;
       const templatePath = `legal/${({ userAgreement: 'user-agreement.html', technicalSupport: 'technical-support.html', privacyPolicy: 'privacy-policy.html', membershipAgreement: 'membership-agreement.html' })[key]}`;
-      templates[key] ||= await readPagesFile(connection, target.repository, templatePath);
-      if (!templates[key]?.payload?.content) continue;
-      const template = fromBase64(templates[key].payload.content);
+      const currentPage = await readPagesFile(connection, target.repository, target.filePath);
+      const templatePage = currentPage || await readPagesFile(connection, target.repository, templatePath);
+      if (!templatePage?.payload?.content) throw new Error(`${label}页面不存在，无法保存`);
+      const template = fromBase64(templatePage.payload.content);
       const content = typeof agreement === 'object' ? String(agreement.content || '') : '';
       const page = agreementPageHtml(template, content, target.filePath);
-      const repositoryPath = templates[key].repositoryPath.startsWith('docs/') ? `docs/${target.filePath}` : target.filePath;
-      const current = await readRemoteFile(connection, repositoryPath, target.repository);
-      if (current && !content) continue;
+      const repositoryPath = currentPage?.repositoryPath || (templatePage.repositoryPath.startsWith('docs/') ? `docs/${target.filePath}` : target.filePath);
       const body = {
         message: `${content ? '更新' : '生成'}${label}页面`,
         content: toBase64(page)
       };
-      if (current?.sha) body.sha = current.sha;
+      if (currentPage?.payload?.sha) body.sha = currentPage.payload.sha;
       await githubRequest(connection, 'PUT', `/repos/${target.repository}/contents/${encodePath(repositoryPath)}`, body);
+      const savedPage = await readRemoteFile(connection, repositoryPath, target.repository);
+      if (!savedPage?.content || fromBase64(savedPage.content) !== page) throw new Error(`${label}页面写入校验失败`);
     }
   }
 
