@@ -156,32 +156,31 @@
     try { return JSON.parse(fromBase64(payload.content)); } catch { throw new Error(`${label}内容格式有误`); }
   }
 
-  async function readRemoteFile(connection, filePath) {
-    const repo = normalizeRepo(connection.repo);
+  async function readRemoteFile(connection, filePath, repository = normalizeRepo(connection.repo)) {
     try {
-      return await githubRequest(connection, 'GET', `/repos/${repo}/contents/${encodePath(filePath)}`);
+      return await githubRequest(connection, 'GET', `/repos/${repository}/contents/${encodePath(filePath)}`);
     } catch (error) {
       if (error.message.includes('Not Found')) return null;
       throw error;
     }
   }
 
-  function agreementPagePath(connection, url, key) {
+  function agreementPageTarget(url, key) {
     try {
       const parsed = new URL(url);
-      const [owner, repository] = normalizeRepo(connection.repo).split('/');
-      if (parsed.hostname.toLowerCase() !== `${owner.toLowerCase()}.github.io`) return null;
-      const prefix = `/${repository}/`;
-      if (!parsed.pathname.startsWith(prefix)) return null;
+      const ownerMatch = parsed.hostname.match(/^([a-z0-9-]+)\.github\.io$/i);
+      if (!ownerMatch) return null;
+      const segments = parsed.pathname.split('/').filter(Boolean).map((part) => decodeURIComponent(part));
+      const repository = segments.shift();
       const fileName = {
         userAgreement: 'user-agreement.html',
         technicalSupport: 'technical-support.html',
         privacyPolicy: 'privacy-policy.html',
         membershipAgreement: 'membership-agreement.html'
       }[key] || '';
-      const filePath = decodeURIComponent(parsed.pathname.slice(prefix.length)).replace(/^\/+|\/+$/g, '');
-      if (!fileName || !filePath.endsWith(`/${fileName}`) || filePath.startsWith('legal/') || filePath.includes('..')) return null;
-      return filePath;
+      const filePath = segments.join('/');
+      if (!repository || !fileName || !filePath.endsWith(`/${fileName}`) || filePath.startsWith('legal/') || filePath.includes('..')) return null;
+      return { repository: `${ownerMatch[1]}/${repository}`, filePath };
     } catch { return null; }
   }
 
@@ -199,21 +198,21 @@
     for (const [key, label] of AGREEMENT_FIELDS) {
       const agreement = subject.agreements?.[key];
       const url = typeof agreement === 'object' ? String(agreement.url || '').trim() : String(agreement || '').trim();
-      const filePath = agreementPagePath(connection, url, key);
-      if (!filePath) continue;
+      const target = agreementPageTarget(url, key);
+      if (!target) continue;
       const templatePath = `legal/${({ userAgreement: 'user-agreement.html', technicalSupport: 'technical-support.html', privacyPolicy: 'privacy-policy.html', membershipAgreement: 'membership-agreement.html' })[key]}`;
-      templates[key] ||= await readRemoteFile(connection, templatePath);
+      templates[key] ||= await readRemoteFile(connection, templatePath, target.repository);
       if (!templates[key]?.content) continue;
       const template = fromBase64(templates[key].content);
       const content = typeof agreement === 'object' ? String(agreement.content || '') : '';
-      const page = agreementPageHtml(template, content, filePath);
-      const current = await readRemoteFile(connection, filePath);
+      const page = agreementPageHtml(template, content, target.filePath);
+      const current = await readRemoteFile(connection, target.filePath, target.repository);
       const body = {
         message: `${content ? '更新' : '生成'}${label}页面`,
         content: toBase64(page)
       };
       if (current?.sha) body.sha = current.sha;
-      await githubRequest(connection, 'PUT', `/repos/${normalizeRepo(connection.repo)}/contents/${encodePath(filePath)}`, body);
+      await githubRequest(connection, 'PUT', `/repos/${target.repository}/contents/${encodePath(target.filePath)}`, body);
     }
   }
 
