@@ -312,6 +312,12 @@
     openModal(ui.agreementUrlModal);
   }
 
+  function defaultAgreementSourceUrl(key) {
+    const fileName = DEFAULT_AGREEMENT_PATHS[key];
+    if (location.protocol !== 'file:' && /github\.io$/i.test(location.hostname)) return new URL(`legal/${fileName}`, `${location.origin}${location.pathname.replace(/[^/]*$/, '')}`).href;
+    return `https://xhsuser.github.io/confightml/legal/${fileName}`;
+  }
+
   function saveAgreementUrlEditor(event) {
     event.preventDefault();
     if (!editingAgreementUrlKey) return;
@@ -361,8 +367,15 @@
     }
     ui.agreementEditorContent.innerHTML = '<p>正在读取协议内容…</p>';
     try {
-      const response = await fetch(url, { headers: { Accept: 'text/html' } });
-      if (!response.ok) throw new Error(`协议页面读取失败 (${response.status})`);
+      const sources = [url];
+      const generatedUrl = ui.subjectId.value.trim() ? defaultAgreementUrl(key) : '';
+      if (url === generatedUrl) sources.push(defaultAgreementSourceUrl(key));
+      let response = null;
+      for (const source of sources) {
+        const candidate = await fetch(source, { headers: { Accept: 'text/html' } });
+        if (candidate.ok) { response = candidate; break; }
+      }
+      if (!response) throw new Error('协议页面读取失败');
       const html = await response.text();
       const parsed = new DOMParser().parseFromString(html, 'text/html');
       const content = parsed.querySelector('.content') || parsed.querySelector('article') || parsed.body;

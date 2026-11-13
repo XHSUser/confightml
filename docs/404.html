@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>协议页面</title>
+  <style>
+    body { margin: 0; background: #f5f6f8; color: #202124; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .status { width: min(720px, calc(100% - 40px)); margin: 15vh auto; padding: 32px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <main class="status" id="status">正在加载协议内容…</main>
+  <script>
+    (() => {
+      const fileNames = new Set(['user-agreement.html', 'technical-support.html', 'privacy-policy.html', 'membership-agreement.html']);
+      const path = window.location.pathname;
+      const fileName = decodeURIComponent(path.split('/').pop() || '');
+      const marker = '/confightml/';
+      const markerIndex = path.indexOf(marker);
+      const root = markerIndex >= 0 ? path.slice(0, markerIndex + marker.length) : path.slice(0, path.lastIndexOf('/') + 1);
+      const source = fileNames.has(fileName) ? new URL(`legal/${fileName}`, window.location.origin + root).href : '';
+      if (!source) {
+        document.querySelector('#status').textContent = '协议页面不存在';
+        return;
+      }
+      fetch(source).then((response) => {
+        if (!response.ok) throw new Error('协议内容读取失败');
+        return response.text();
+      }).then((html) => {
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        const content = parsed.body?.innerHTML;
+        if (!content) throw new Error('协议内容为空');
+        document.title = parsed.title || '协议页面';
+        document.head.insertAdjacentHTML('beforeend', `<link rel="stylesheet" href="${new URL('legal/legal.css', window.location.origin + root).href}">`);
+        document.body.innerHTML = content;
+      }).catch(() => {
+        document.querySelector('#status').textContent = '协议页面不存在';
+      });
+    })();
+  </script>
+</body>
+</html>
