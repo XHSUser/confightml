@@ -492,6 +492,16 @@
     showToast(`已生成协议链接：${pathName}`);
   }
 
+  function notifySubjectSaved(result, successMessage) {
+    if (result?.agreementPageError) {
+      const message = '主体配置已保存，但 confightml 协议页面未更新。请使用 XHSUser/confightml 连接，并为 Token 开通 Contents 写权限。';
+      ui.subjectError.textContent = message;
+      showToast(message, 'error');
+      return;
+    }
+    showToast(successMessage);
+  }
+
   async function syncSubjectConfig() {
     ui.subjectError.textContent = '';
     try {
@@ -501,7 +511,7 @@
       state.activeSubjectId = result.subject.id;
       renderSubjectSelect();
       renderAppSubjectSelect();
-      showToast('主体协议配置已同步');
+      notifySubjectSaved(result, '主体协议配置已同步');
     } catch (error) { showError(ui.subjectError, error); }
   }
 
@@ -525,7 +535,7 @@
       renderAppSubjectSelect();
       closeModal(ui.subjectModal);
       await loadApps();
-      showToast(input.id ? '主体已更新' : '主体已创建');
+      notifySubjectSaved(result, input.id ? '主体已更新' : '主体已创建');
     } catch (error) { showError(ui.subjectError, error); }
   }
 
@@ -550,7 +560,9 @@
 
   async function previewAgreement(key, url) {
     try {
-      const content = agreementDraft[key] || await fetchAgreementContent(key, url);
+      let content = '';
+      try { content = await fetchAgreementContent(key, url); } catch { content = agreementDraft[key] || ''; }
+      if (!content) throw new Error('协议内容为空，请先保存协议内容');
       agreementDraft[key] ||= content;
       const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
       ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
