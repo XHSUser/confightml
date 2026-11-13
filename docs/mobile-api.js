@@ -266,6 +266,7 @@
   }
 
   async function saveAgreementHtml(connection, key, url, content) {
+    if (!agreementPageTarget(url, key)) throw new Error('基础 legal 协议页面不可编辑，请使用主体专属协议链接');
     await syncSubjectAgreementPages(connection, { agreements: { [key]: { url, content } } });
     return { saved: true };
   }
