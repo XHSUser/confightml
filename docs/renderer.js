@@ -375,7 +375,6 @@
     AGREEMENT_FIELDS.forEach(([key]) => {
       const value = agreementValue(subject, key);
       agreementInput(key).value = value.url;
-      agreementDraft[key] = value.content;
     });
     openModal(ui.subjectModal);
   }
@@ -384,7 +383,7 @@
     return {
       id: ui.subjectId.value.trim(),
       name: ui.subjectName.value.trim(),
-      agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, { url: agreementInput(key).value.trim(), content: agreementDraft[key] || '' }]))
+      agreements: Object.fromEntries(AGREEMENT_FIELDS.map(([key]) => [key, { url: agreementInput(key).value.trim() }]))
     };
   }
 
@@ -395,16 +394,14 @@
     ui.agreementEditorTitle.textContent = `编辑${label}`;
     const url = agreementInput(key)?.value.trim() || '';
     ui.agreementEditorUrl.value = url;
-    const existing = agreementDraft[key] || '';
     openModal(ui.agreementEditorModal);
-    if (existing || !url) {
-      ui.agreementEditorContent.innerHTML = agreementContentHtml(existing);
+    if (!url) {
+      ui.agreementEditorContent.innerHTML = '';
       return;
     }
     ui.agreementEditorContent.innerHTML = '<p>正在读取协议内容…</p>';
     try {
-      agreementDraft[key] = await fetchAgreementContent(key, url);
-      ui.agreementEditorContent.innerHTML = agreementContentHtml(agreementDraft[key]);
+      ui.agreementEditorContent.innerHTML = agreementContentHtml(await fetchAgreementContent(key, url));
     } catch (error) {
       ui.agreementEditorContent.innerHTML = '';
       showError(ui.agreementEditorError, error);
@@ -445,14 +442,18 @@
     document.execCommand(button.dataset.editorCommand, false, value);
   }
 
-  function saveAgreementEditor(event) {
+  async function saveAgreementEditor(event) {
     event.preventDefault();
     if (!editingAgreementKey) return;
-    agreementDraft[editingAgreementKey] = sanitiseAgreementHtml(ui.agreementEditorContent.innerHTML);
-    closeModal(ui.agreementEditorModal);
-    if (activeConnection() && ui.subjectId.value.trim()) {
-      syncSubjectConfig().catch((error) => showError(ui.subjectError, error));
-    } else showToast('协议内容已更新，请保存主体');
+    const url = agreementInput(editingAgreementKey)?.value.trim() || '';
+    if (!url) return showError(ui.agreementEditorError, new Error('请先填写协议链接'));
+    const content = sanitiseAgreementHtml(ui.agreementEditorContent.innerHTML);
+    try {
+      await request(() => window.desktopAPI.saveAgreementPage(activeConnection().id, editingAgreementKey, url, content), '正在保存协议 HTML…');
+      agreementDraft[editingAgreementKey] = '';
+      closeModal(ui.agreementEditorModal);
+      showToast('协议 HTML 已保存');
+    } catch (error) { showError(ui.agreementEditorError, error); }
   }
 
   function defaultAgreementUrl(key, pathName = '') {
@@ -560,10 +561,8 @@
 
   async function previewAgreement(key, url) {
     try {
-      let content = '';
-      try { content = await fetchAgreementContent(key, url); } catch { content = agreementDraft[key] || ''; }
+      const content = await fetchAgreementContent(key, url);
       if (!content) throw new Error('协议内容为空，请先保存协议内容');
-      agreementDraft[key] ||= content;
       const label = AGREEMENT_FIELDS.find(([field]) => field === key)?.[1] || '协议';
       ui.previewModal.querySelector('.eyebrow').textContent = 'AGREEMENT PREVIEW';
       ui.previewModal.querySelector('h2').textContent = `${label} · 预览`;

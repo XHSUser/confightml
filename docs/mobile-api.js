@@ -216,6 +216,7 @@
       const page = agreementPageHtml(template, content, target.filePath);
       const repositoryPath = templates[key].repositoryPath.startsWith('docs/') ? `docs/${target.filePath}` : target.filePath;
       const current = await readRemoteFile(connection, repositoryPath, target.repository);
+      if (current && !content) continue;
       const body = {
         message: `${content ? '更新' : '生成'}${label}页面`,
         content: toBase64(page)
@@ -262,6 +263,11 @@
     try { await syncSubjectAgreementPages(connection, subject); } catch (error) { agreementPageError = error?.message || String(error); }
     if (connectionId) cacheApps(connectionId, await listApps(connection));
     return { ...result, subject, subjects: document.subjects, agreementPageError };
+  }
+
+  async function saveAgreementHtml(connection, key, url, content) {
+    await syncSubjectAgreementPages(connection, { agreements: { [key]: { url, content } } });
+    return { saved: true };
   }
 
   async function listApps(connection) {
@@ -619,6 +625,7 @@
       return document.subjects || [];
     },
     saveSubject: async (connectionId, input) => saveSubject(getConnection(readState(), connectionId), input, connectionId),
+    saveAgreementPage: async (connectionId, key, url, content) => saveAgreementHtml(getConnection(readState(), connectionId), key, url, content),
     exportConnections,
     importConnections,
     listApps: async (connectionId) => {
