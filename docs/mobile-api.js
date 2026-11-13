@@ -193,6 +193,14 @@
     return `<!doctype html>\n${parsed.documentElement.outerHTML}`;
   }
 
+  async function readPagesFile(connection, repository, webPath) {
+    for (const repositoryPath of [webPath, `docs/${webPath}`]) {
+      const payload = await readRemoteFile(connection, repositoryPath, repository);
+      if (payload) return { payload, repositoryPath };
+    }
+    return null;
+  }
+
   async function syncSubjectAgreementPages(connection, subject) {
     const templates = {};
     for (const [key, label] of AGREEMENT_FIELDS) {
@@ -201,18 +209,19 @@
       const target = agreementPageTarget(url, key);
       if (!target) continue;
       const templatePath = `legal/${({ userAgreement: 'user-agreement.html', technicalSupport: 'technical-support.html', privacyPolicy: 'privacy-policy.html', membershipAgreement: 'membership-agreement.html' })[key]}`;
-      templates[key] ||= await readRemoteFile(connection, templatePath, target.repository);
-      if (!templates[key]?.content) continue;
-      const template = fromBase64(templates[key].content);
+      templates[key] ||= await readPagesFile(connection, target.repository, templatePath);
+      if (!templates[key]?.payload?.content) continue;
+      const template = fromBase64(templates[key].payload.content);
       const content = typeof agreement === 'object' ? String(agreement.content || '') : '';
       const page = agreementPageHtml(template, content, target.filePath);
-      const current = await readRemoteFile(connection, target.filePath, target.repository);
+      const repositoryPath = templates[key].repositoryPath.startsWith('docs/') ? `docs/${target.filePath}` : target.filePath;
+      const current = await readRemoteFile(connection, repositoryPath, target.repository);
       const body = {
         message: `${content ? '更新' : '生成'}${label}页面`,
         content: toBase64(page)
       };
       if (current?.sha) body.sha = current.sha;
-      await githubRequest(connection, 'PUT', `/repos/${target.repository}/contents/${encodePath(target.filePath)}`, body);
+      await githubRequest(connection, 'PUT', `/repos/${target.repository}/contents/${encodePath(repositoryPath)}`, body);
     }
   }
 
