@@ -922,11 +922,11 @@
       focusInvalidField(missing[0].field);
       throw new Error(`请填写或选择${missing[0].label}${missing.length > 1 ? `，还有 ${missing.length - 1} 项未完成` : ''}`);
     }
-    if (document.app.version && !/^\d+\.\d+(?:\.\d+)?$/.test(document.app.version)) {
+    if (document.app.version && !/^\d+(?:\.\d+){0,2}$/.test(document.app.version)) {
       ui.appVersion.setAttribute('aria-invalid', 'true');
       updateInvalidTabs();
       focusInvalidField(ui.appVersion);
-      throw new Error('当前版本只能填写 1.0 或 1.0.0 这类格式');
+      throw new Error('当前版本需填写类似 1、1.0 或 1.0.0');
     }
     if (duplicateKeys) {
       focusInvalidField(ui.switchList.querySelector('[data-switch-field="key"][aria-invalid="true"]'));
@@ -960,7 +960,7 @@
     const missing = [];
     ui.formGrid.querySelectorAll('[data-required-field], #appVersion').forEach((field) => {
       const empty = !field.value.trim();
-      const invalidVersion = field === ui.appVersion && !empty && !/^\d+\.\d+(?:\.\d+)?$/.test(field.value.trim());
+      const invalidVersion = field === ui.appVersion && !empty && !/^\d+(?:\.\d+){0,2}$/.test(field.value.trim());
       if (empty && field !== ui.appVersion) missing.push({ field, label: requiredFieldLabel(field) });
       if (state.validationAttempted && ((empty && field !== ui.appVersion) || invalidVersion)) field.setAttribute('aria-invalid', 'true');
       else if (!field.matches('[data-switch-field="key"]')) field.removeAttribute('aria-invalid');

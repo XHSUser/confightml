@@ -107,6 +107,9 @@
   }
 
   async function githubRequest(connection, method, apiPath, body) {
+    if (body && (method === 'PUT' || method === 'DELETE') && apiPath.includes('/contents/')) {
+      body = { ...body, message: '内购变化' };
+    }
     const headers = {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${connection.token}`,
@@ -305,7 +308,7 @@
 
   async function versionFileName(commonFilePath, version) {
     const clean = String(version || '').trim();
-    if (!/^\d+\.\d+(?:\.\d+)?$/.test(clean)) throw new Error('版本号需填写类似 1.0 或 1.0.0');
+    if (!/^\d+(?:\.\d+){0,2}$/.test(clean)) throw new Error('版本号需填写类似 1、1.0 或 1.0.0');
     const common = String(commonFilePath || '').replace(/\.json$/i, '');
     return `${common}${await versionHash(clean)}.json`;
   }
@@ -333,10 +336,10 @@
     const common = findDirectoryApp(directory, commonFilePath);
     if (!common) throw new Error('应用目录中没有登记通用 JSON');
     const document = versionDocument(decodeContent(commonPayload, '通用配置'), 'review');
-    const result = await writeRemoteJson(connection, filePath, document, null, `创建审核版本 ${filePath}`);
+    const result = await writeRemoteJson(connection, filePath, document, null, `创建版本 ${filePath}`);
     common.versions = Array.isArray(common.versions) ? common.versions : [];
     common.versions.push({ version: String(version).trim(), fileName: filePath, status: 'review' });
-    const directoryResult = await writeDirectory(connection, directory, directorySha, '登记审核版本');
+    const directoryResult = await writeDirectory(connection, directory, directorySha, '登记版本');
     if (connectionId) { cacheApps(connectionId, await listApps(connection)); cacheApp(connectionId, { path: filePath, sha: result.sha, document, metadata: { ...common, fileName: filePath, version: String(version).trim(), status: 'review' } }); }
     return { ...result, path: filePath, document, version: String(version).trim(), status: 'review', directorySha: directoryResult.sha };
   }
@@ -351,9 +354,9 @@
     const version = common?.versions?.find((item) => item.fileName === filePath);
     if (!version) throw new Error('应用目录中没有登记这个版本');
     const document = versionDocument(decodeContent(commonPayload, '通用配置'), status, version.version);
-    const result = await writeRemoteJson(connection, filePath, document, versionPayload.sha, `${status === 'online' ? '上线' : '退回审核'}版本 ${filePath}`);
+    const result = await writeRemoteJson(connection, filePath, document, versionPayload.sha, `更新版本配置 ${filePath}`);
     version.status = status;
-    await writeDirectory(connection, directory, directorySha, '更新版本状态');
+    await writeDirectory(connection, directory, directorySha, '更新版本记录');
     if (connectionId) { cacheApps(connectionId, await listApps(connection)); cacheApp(connectionId, { path: filePath, sha: result.sha, document, metadata: { ...common, fileName: filePath, version: version.version, status } }); }
     return { ...result, path: filePath, document, status, version: version.version };
   }
